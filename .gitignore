@@ -1,0 +1,19 @@
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.env
+logs/
+*.log
+.pytest_cache/
+.coverage
+htmlcov/
+models/*.joblib
+*.DS_Store
+.vscode/
+.idea/
+.Datathon - Machine Learning Engineering.pdf
+DATATHON-20260215T114121Z-3-001/
+venv/

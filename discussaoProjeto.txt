@@ -1,0 +1,14 @@
+A defasagem já é o resultado da subtração de duas features : fase atual - fase ideal 
+
+Eu tô usando como target a diferença entre a defasagem do ano atual com o ano seguinte para o mesmo aluno fazendo uma junção pelo ra, uma forma de tentar prever se a defasagem do estudante vai aumentar ou não no ano seguinte.
+
+Mas o objetivo não tá muito bem definido, dá pra usar a criatividade aqui
+
+Cada aluno tem a fase que está e a fase ideal, esse campo traz a diferença das fases.
+Valor negativo significa que ele está numa fase atrasada, positiva mostra que está avançado
+E zero está na fase esperada
+
+Eu estou usando os de 2022 a 2024. eu fiz uma analise dos tres anos em que existem dados nas colunas para criar as features que pode ser analisada para analise dos abandonos.. porque se só tiver em um ano não vou conseguir corelacionar com os outros anos a mesma feature.
+claro que tem outras formas de fazer, mas por aqui eu segui desta forma eu fiz uma analise dos tres anos em que existem dados nas colunas para criar as features que pode ser analisada para analise dos abandonos.. porque se só tiver em um ano não vou conseguir corelacionar com os outros anos a mesma feature.
+claro que tem outras formas de fazer, mas por aqui eu segui desta forma.eu peguei as 3, tirei as colunas que não são padrões e fiz o stack dos 3 anos[19/01, 11:21] +39 388 052 9875: mas pelo q vi, mesmo as colunas que batem, maior parte tem mtos vazios, algumas colunas com 71% de vazios
+[19/01, 11:21] +39 388 052 9875: se não me engano sobra umas 5 features

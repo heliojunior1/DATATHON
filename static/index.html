@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,156 +8,273 @@
   <meta name="description" content="Dashboard de ML para previsão de risco de defasagem escolar">
   <link rel="stylesheet" href="/static/styles.css">
 </head>
+
 <body>
-<div class="app">
-  <!-- SIDEBAR -->
-  <aside class="sidebar">
-    <div class="logo">
-      <div class="logo-icon">💎</div>
-      <div><h2>Passos Mágicos</h2><span>ML Dashboard</span></div>
-    </div>
-    <ul class="nav">
-      <li><a onclick="navigate('dashboard')" class="active"><span class="nav-icon">📊</span>Dashboard</a></li>
-      <li><a onclick="navigate('predict')"><span class="nav-icon">🔍</span>Predição</a></li>
-      <li><a onclick="navigate('batch')"><span class="nav-icon">📋</span>Predição em Lote</a></li>
-      <li><a onclick="navigate('monitoring')"><span class="nav-icon">📈</span>Monitoramento</a></li>
-    </ul>
-    <div class="sidebar-footer">v1.0.0 • XGBoost</div>
-  </aside>
-
-  <!-- MAIN CONTENT -->
-  <main class="main">
-
-    <!-- ===== DASHBOARD ===== -->
-    <div id="page-dashboard" class="page active">
-      <h1 class="page-title">Dashboard</h1>
-      <p class="page-subtitle">Visão geral do modelo de previsão de risco de defasagem escolar</p>
-
-      <div class="metrics-grid">
-        <div class="metric-card purple"><div class="metric-label">Status</div><div class="metric-value" style="font-size:20px" id="m-status">—</div><div class="metric-sub" id="m-model">—</div></div>
-        <div class="metric-card green"><div class="metric-label">Accuracy</div><div class="metric-value" id="m-accuracy">—</div><div class="metric-sub" id="m-features">—</div></div>
-        <div class="metric-card blue"><div class="metric-label">F1-Score</div><div class="metric-value" id="m-f1">—</div><div class="metric-sub" id="m-samples">—</div></div>
-        <div class="metric-card amber"><div class="metric-label">AUC-ROC</div><div class="metric-value" id="m-auc">—</div><div class="metric-sub">Área sob a curva</div></div>
-        <div class="metric-card green"><div class="metric-label">Recall</div><div class="metric-value" id="m-recall">—</div><div class="metric-sub">Sensibilidade</div></div>
-        <div class="metric-card purple"><div class="metric-label">Precision</div><div class="metric-value" id="m-precision">—</div><div class="metric-sub">Precisão</div></div>
-      </div>
-
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
-        <div class="card">
-          <div class="card-title"><span class="card-icon">⭐</span>Feature Importance (Top 12)</div>
-          <div id="feat-bars"></div>
+  <div class="app">
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="logo">
+        <div class="logo-icon">💎</div>
+        <div>
+          <h2>Passos Mágicos</h2><span>ML Dashboard</span>
         </div>
-        <div class="card">
-          <div class="card-title"><span class="card-icon">🎯</span>Confusion Matrix</div>
-          <div class="cm-grid">
-            <div></div><div class="cm-label">Pred: Sem Risco</div><div class="cm-label">Pred: Em Risco</div>
-            <div class="cm-label">Real:<br>Sem Risco</div><div class="cm-cell cm-tn" id="cm-tn">—</div><div class="cm-cell cm-fp" id="cm-fp">—</div>
-            <div class="cm-label">Real:<br>Em Risco</div><div class="cm-cell cm-fn" id="cm-fn">—</div><div class="cm-cell cm-tp" id="cm-tp">—</div>
+      </div>
+      <ul class="nav">
+        <li><a onclick="navigate('dashboard')" class="active"><span class="nav-icon">📊</span>Dashboard</a></li>
+        <li><a onclick="navigate('predict')"><span class="nav-icon">🔍</span>Predição</a></li>
+        <li><a onclick="navigate('batch')"><span class="nav-icon">📋</span>Predição em Lote</a></li>
+        <li><a onclick="navigate('monitoring')"><span class="nav-icon">📈</span>Monitoramento</a></li>
+      </ul>
+      <div class="sidebar-footer">v1.0.0 • XGBoost</div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="main">
+
+      <!-- ===== DASHBOARD ===== -->
+      <div id="page-dashboard" class="page active">
+        <h1 class="page-title">Dashboard</h1>
+        <p class="page-subtitle">Visão geral do modelo de previsão de risco de defasagem escolar</p>
+
+        <div class="metrics-grid">
+          <div class="metric-card purple">
+            <div class="metric-label">Status</div>
+            <div class="metric-value" style="font-size:20px" id="m-status">—</div>
+            <div class="metric-sub" id="m-model">—</div>
+          </div>
+          <div class="metric-card green">
+            <div class="metric-label">Accuracy</div>
+            <div class="metric-value" id="m-accuracy">—</div>
+            <div class="metric-sub" id="m-features">—</div>
+          </div>
+          <div class="metric-card blue">
+            <div class="metric-label">F1-Score</div>
+            <div class="metric-value" id="m-f1">—</div>
+            <div class="metric-sub" id="m-samples">—</div>
+          </div>
+          <div class="metric-card amber">
+            <div class="metric-label">AUC-ROC</div>
+            <div class="metric-value" id="m-auc">—</div>
+            <div class="metric-sub">Área sob a curva</div>
+          </div>
+          <div class="metric-card green">
+            <div class="metric-label">Recall</div>
+            <div class="metric-value" id="m-recall">—</div>
+            <div class="metric-sub">Sensibilidade</div>
+          </div>
+          <div class="metric-card purple">
+            <div class="metric-label">Precision</div>
+            <div class="metric-value" id="m-precision">—</div>
+            <div class="metric-sub">Precisão</div>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+          <div class="card">
+            <div class="card-title"><span class="card-icon">⭐</span>Feature Importance (Top 12)</div>
+            <div id="feat-bars"></div>
+          </div>
+          <div class="card">
+            <div class="card-title"><span class="card-icon">🎯</span>Confusion Matrix</div>
+            <div class="cm-grid">
+              <div></div>
+              <div class="cm-label">Pred: Sem Risco</div>
+              <div class="cm-label">Pred: Em Risco</div>
+              <div class="cm-label">Real:<br>Sem Risco</div>
+              <div class="cm-cell cm-tn" id="cm-tn">—</div>
+              <div class="cm-cell cm-fp" id="cm-fp">—</div>
+              <div class="cm-label">Real:<br>Em Risco</div>
+              <div class="cm-cell cm-fn" id="cm-fn">—</div>
+              <div class="cm-cell cm-tp" id="cm-tp">—</div>
+            </div>
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- ===== PREDIÇÃO ===== -->
-    <div id="page-predict" class="page">
-      <h1 class="page-title">Predição Individual</h1>
-      <p class="page-subtitle">Preencha os dados do aluno para estimar o risco de defasagem escolar</p>
+      <!-- ===== PREDIÇÃO ===== -->
+      <div id="page-predict" class="page">
+        <h1 class="page-title">Predição Individual</h1>
+        <p class="page-subtitle">Preencha os dados do aluno para estimar o risco de defasagem escolar</p>
 
-      <div class="card">
-        <div class="card-title"><span class="card-icon">📝</span>Indicadores Acadêmicos</div>
-        <div class="form-grid">
-          <div class="form-group"><label>IAA (0-10)</label><input type="number" id="f-IAA" data-key="IAA" step="0.01" min="0" max="10"></div>
-          <div class="form-group"><label>IEG (0-10)</label><input type="number" id="f-IEG" data-key="IEG" step="0.01" min="0" max="10"></div>
-          <div class="form-group"><label>IPS (0-10)</label><input type="number" id="f-IPS" data-key="IPS" step="0.01" min="0" max="10"></div>
-          <div class="form-group"><label>IDA (0-10)</label><input type="number" id="f-IDA" data-key="IDA" step="0.01" min="0" max="10"></div>
-          <div class="form-group"><label>IPV (0-10)</label><input type="number" id="f-IPV" data-key="IPV" step="0.01" min="0" max="10"></div>
-          <div class="form-group"><label>IAN (0, 5 ou 10)</label><input type="number" id="f-IAN" data-key="IAN" step="5" min="0" max="10"></div>
-          <div class="form-group"><label>INDE 2022</label><input type="number" id="f-INDE_22" data-key="INDE 22" step="0.001" min="0" max="10"></div>
-          <div class="form-group"><label>Matemática</label><input type="number" id="f-Matem" data-key="Matem" step="0.01" min="0" max="10"></div>
-          <div class="form-group"><label>Português</label><input type="number" id="f-Portug" data-key="Portug" step="0.01" min="0" max="10"></div>
-          <div class="form-group"><label>Inglês</label><input type="number" id="f-Ingles" data-key="Inglês" step="0.01" min="0" max="10"></div>
+        <div class="card">
+          <div class="card-title"><span class="card-icon">📝</span>Indicadores Acadêmicos</div>
+          <div class="form-grid">
+            <div class="form-group"><label>IAA (0-10)</label><input type="number" id="f-IAA" data-key="IAA" step="0.01"
+                min="0" max="10"></div>
+            <div class="form-group"><label>IEG (0-10)</label><input type="number" id="f-IEG" data-key="IEG" step="0.01"
+                min="0" max="10"></div>
+            <div class="form-group"><label>IPS (0-10)</label><input type="number" id="f-IPS" data-key="IPS" step="0.01"
+                min="0" max="10"></div>
+            <div class="form-group"><label>IDA (0-10)</label><input type="number" id="f-IDA" data-key="IDA" step="0.01"
+                min="0" max="10"></div>
+            <div class="form-group"><label>IPV (0-10)</label><input type="number" id="f-IPV" data-key="IPV" step="0.01"
+                min="0" max="10"></div>
+            <div class="form-group"><label>IAN (0, 5 ou 10)</label><input type="number" id="f-IAN" data-key="IAN"
+                step="5" min="0" max="10"></div>
+            <div class="form-group"><label>INDE 2022</label><input type="number" id="f-INDE_22" data-key="INDE 22"
+                step="0.001" min="0" max="10"></div>
+            <div class="form-group"><label>Matemática</label><input type="number" id="f-Matem" data-key="Matem"
+                step="0.01" min="0" max="10"></div>
+            <div class="form-group"><label>Português</label><input type="number" id="f-Portug" data-key="Portug"
+                step="0.01" min="0" max="10"></div>
+            <div class="form-group"><label>Português</label><input type="number" id="f-Portug" data-key="Portug"
+                step="0.01" min="0" max="10"></div>
+            <div class="form-group"><label>Tem nota Inglês?</label><select id="f-Tem_nota_ingles"
+                data-key="Tem_nota_ingles">
+                <option value="0">Não</option>
+                <option value="1">Sim</option>
+              </select></div>
+          </div>
         </div>
-      </div>
 
-      <div class="card">
-        <div class="card-title"><span class="card-icon">👤</span>Dados do Aluno</div>
-        <div class="form-grid">
-          <div class="form-group"><label>Idade (2022)</label><input type="number" id="f-Idade_22" data-key="Idade 22" min="6" max="25"></div>
-          <div class="form-group"><label>Gênero</label><select id="f-Genero" data-key="Gênero"><option value="">Selecione</option><option>Menina</option><option>Menino</option></select></div>
-          <div class="form-group"><label>Escola</label><select id="f-Instituicao" data-key="Instituição de ensino"><option value="">Selecione</option><option>Escola Pública</option><option>Rede Decisão</option><option>Escola JP II</option></select></div>
-          <div class="form-group"><label>Ano de Ingresso</label><input type="number" id="f-Ano_ingresso" data-key="Ano ingresso" min="2016" max="2023"></div>
-          <div class="form-group"><label>Pedra 2022</label><select id="f-Pedra_22" data-key="Pedra 22"><option value="">Selecione</option><option>Quartzo</option><option>Ágata</option><option>Ametista</option><option>Topázio</option></select></div>
-          <div class="form-group"><label>Rec. Psicologia</label><select id="f-Rec_psico" data-key="Rec Psicologia"><option value="">Selecione</option><option>Não atendido</option><option>Sem limitações</option><option>Requer avaliação</option><option>Não indicado</option><option>Não avaliado</option></select></div>
-          <div class="form-group"><label>Atingiu PV</label><select id="f-Atingiu_PV" data-key="Atingiu PV"><option value="">Selecione</option><option>Sim</option><option>Não</option></select></div>
-          <div class="form-group"><label>Indicado</label><select id="f-Indicado" data-key="Indicado"><option value="">Selecione</option><option>Sim</option><option>Não</option></select></div>
+        <div class="card">
+          <div class="card-title"><span class="card-icon">👤</span>Dados do Aluno</div>
+          <div class="form-grid">
+            <div class="form-group"><label>Fase</label><select id="f-Fase" data-key="Fase">
+                <option value="">Selecione</option>
+                <option>Alfa</option>
+                <option>Fase 1</option>
+                <option>Fase 2</option>
+                <option>Fase 3</option>
+                <option>Fase 4</option>
+                <option>Fase 5</option>
+                <option>Fase 6</option>
+                <option>Fase 7</option>
+                <option>Fase 8</option>
+              </select></div>
+            <div class="form-group"><label>Idade (2022)</label><input type="number" id="f-Idade_22" data-key="Idade 22"
+                min="6" max="25"></div>
+            <div class="form-group"><label>Gênero</label><select id="f-Genero" data-key="Gênero">
+                <option value="">Selecione</option>
+                <option>Menina</option>
+                <option>Menino</option>
+              </select></div>
+            <div class="form-group"><label>Escola</label><select id="f-Instituicao" data-key="Instituição de ensino">
+                <option value="">Selecione</option>
+                <option>Escola Pública</option>
+                <option>Rede Decisão</option>
+                <option>Escola JP II</option>
+              </select></div>
+            <div class="form-group"><label>Ano de Ingresso</label><input type="number" id="f-Ano_ingresso"
+                data-key="Ano ingresso" min="2016" max="2023"></div>
+            <div class="form-group"><label>Pedra 2022</label><select id="f-Pedra_22" data-key="Pedra 22">
+                <option value="">Selecione</option>
+                <option>Quartzo</option>
+                <option>Ágata</option>
+                <option>Ametista</option>
+                <option>Topázio</option>
+              </select></div>
+            <div class="form-group"><label>Atingiu PV</label><select id="f-Atingiu_PV" data-key="Atingiu PV">
+                <option value="">Selecione</option>
+                <option>Sim</option>
+                <option>Não</option>
+              </select></div>
+            <div class="form-group"><label>Indicado</label><select id="f-Indicado" data-key="Indicado">
+                <option value="">Selecione</option>
+                <option>Sim</option>
+                <option>Não</option>
+              </select></div>
+          </div>
         </div>
-      </div>
 
-      <div class="card">
-        <div class="card-title"><span class="card-icon">📊</span>Classificação & Avaliação</div>
-        <div class="form-grid">
-          <div class="form-group"><label>Cg (ranking geral)</label><input type="number" id="f-Cg" data-key="Cg" min="1" max="900"></div>
-          <div class="form-group"><label>Cf (ranking fase)</label><input type="number" id="f-Cf" data-key="Cf" min="1" max="200"></div>
-          <div class="form-group"><label>Ct (ranking turma)</label><input type="number" id="f-Ct" data-key="Ct" min="1" max="30"></div>
-          <div class="form-group"><label>Nº Avaliações</label><input type="number" id="f-Num_Av" data-key="Nº Av" min="1" max="4"></div>
-          <div class="form-group"><label>Destaque IEG</label><select id="f-Destaque_IEG" data-key="Destaque IEG"><option value="">Selecione</option><option value="Destaque IEG">Sim</option><option>Não</option></select></div>
-          <div class="form-group"><label>Destaque IDA</label><select id="f-Destaque_IDA" data-key="Destaque IDA"><option value="">Selecione</option><option value="Destaque IDA">Sim</option><option>Não</option></select></div>
-          <div class="form-group"><label>Destaque IPV</label><select id="f-Destaque_IPV" data-key="Destaque IPV"><option value="">Selecione</option><option value="Destaque IPV">Sim</option><option>Não</option></select></div>
+        <div class="card">
+          <div class="card-title"><span class="card-icon">📊</span>Classificação & Avaliação</div>
+          <div class="form-grid">
+            <div class="form-group"><label>Cf (ranking fase)</label><input type="number" id="f-Cf" data-key="Cf" min="1"
+                max="200"></div>
+            <div class="form-group"><label>Ct (ranking turma)</label><input type="number" id="f-Ct" data-key="Ct"
+                min="1" max="30"></div>
+            <div class="form-group"><label>Nº Avaliações</label><input type="number" id="f-Num_Av" data-key="Nº Av"
+                min="1" max="4"></div>
+            <div class="form-group"><label>Destaque IEG</label><select id="f-Destaque_IEG" data-key="Destaque IEG">
+                <option value="">Selecione</option>
+                <option value="Destaque IEG">Sim</option>
+                <option>Não</option>
+              </select></div>
+            <div class="form-group"><label>Destaque IDA</label><select id="f-Destaque_IDA" data-key="Destaque IDA">
+                <option value="">Selecione</option>
+                <option value="Destaque IDA">Sim</option>
+                <option>Não</option>
+              </select></div>
+            <div class="form-group"><label>Destaque IPV</label><select id="f-Destaque_IPV" data-key="Destaque IPV">
+                <option value="">Selecione</option>
+                <option value="Destaque IPV">Sim</option>
+                <option>Não</option>
+              </select></div>
+          </div>
         </div>
-      </div>
 
-      <div class="btn-group">
-        <button class="btn btn-primary" id="btn-predict" onclick="submitPrediction()"><div class="spinner"></div><span class="btn-text">🔍 Prever Risco</span></button>
-        <button class="btn btn-secondary" onclick="fillExample()">📝 Exemplo</button>
-        <button class="btn btn-secondary" onclick="clearForm()">🗑️ Limpar</button>
-      </div>
-
-      <div id="result-card" class="result-card">
-        <div class="result-header"><span id="r-badge" class="result-badge">—</span></div>
-        <div id="r-prob" class="result-prob">—</div>
-        <div id="r-level" class="result-level">—</div>
-        <div class="card-title"><span class="card-icon">⭐</span>Fatores Principais</div>
-        <div id="r-factors"></div>
-      </div>
-    </div>
-
-    <!-- ===== BATCH ===== -->
-    <div id="page-batch" class="page">
-      <h1 class="page-title">Predição em Lote</h1>
-      <p class="page-subtitle">Envie dados de múltiplos alunos em formato JSON para predição simultânea</p>
-      <div class="card">
-        <div class="card-title"><span class="card-icon">📋</span>Dados dos Alunos (JSON Array)</div>
-        <textarea id="batch-json" placeholder='[&#10;  { "IAA": 7.5, "IEG": 8.0, ... },&#10;  { "IAA": 3.2, "IEG": 4.1, ... }&#10;]'></textarea>
         <div class="btn-group">
-          <button class="btn btn-primary" id="btn-batch" onclick="submitBatch()"><div class="spinner"></div><span class="btn-text">🚀 Processar Lote</span></button>
-          <button class="btn btn-secondary" onclick="loadBatchExample()">📝 Carregar Exemplo</button>
+          <button class="btn btn-primary" id="btn-predict" onclick="submitPrediction()">
+            <div class="spinner"></div><span class="btn-text">🔍 Prever Risco</span>
+          </button>
+          <button class="btn btn-secondary" onclick="fillExample()">📝 Exemplo</button>
+          <button class="btn btn-secondary" onclick="clearForm()">🗑️ Limpar</button>
+        </div>
+
+        <div id="result-card" class="result-card">
+          <div class="result-header"><span id="r-badge" class="result-badge">—</span></div>
+          <div id="r-prob" class="result-prob">—</div>
+          <div id="r-level" class="result-level">—</div>
+          <div class="card-title"><span class="card-icon">⭐</span>Fatores Principais</div>
+          <div id="r-factors"></div>
         </div>
       </div>
-      <div id="batch-results"></div>
-    </div>
 
-    <!-- ===== MONITORING ===== -->
-    <div id="page-monitoring" class="page">
-      <h1 class="page-title">Monitoramento</h1>
-      <p class="page-subtitle">Acompanhe drift de dados e estatísticas de predição em tempo real</p>
-      <div class="metrics-grid">
-        <div class="metric-card blue"><div class="metric-label">Predições</div><div class="metric-value" id="mon-total">0</div></div>
-        <div class="metric-card red"><div class="metric-label">Taxa de Risco</div><div class="metric-value" id="mon-risk-rate">—</div></div>
-        <div class="metric-card amber"><div class="metric-label">Probabilidade Média</div><div class="metric-value" id="mon-avg-prob">—</div></div>
-        <div class="metric-card purple"><div class="metric-label">Drift Status</div><div class="metric-value" style="font-size:16px"><span id="mon-drift-status" class="drift-status drift-warn">—</span></div></div>
+      <!-- ===== BATCH ===== -->
+      <div id="page-batch" class="page">
+        <h1 class="page-title">Predição em Lote</h1>
+        <p class="page-subtitle">Envie dados de múltiplos alunos em formato JSON para predição simultânea</p>
+        <div class="card">
+          <div class="card-title"><span class="card-icon">📋</span>Dados dos Alunos (JSON Array)</div>
+          <textarea id="batch-json"
+            placeholder='[&#10;  { "IAA": 7.5, "IEG": 8.0, ... },&#10;  { "IAA": 3.2, "IEG": 4.1, ... }&#10;]'></textarea>
+          <div class="btn-group">
+            <button class="btn btn-primary" id="btn-batch" onclick="submitBatch()">
+              <div class="spinner"></div><span class="btn-text">🚀 Processar Lote</span>
+            </button>
+            <button class="btn btn-secondary" onclick="loadBatchExample()">📝 Carregar Exemplo</button>
+          </div>
+        </div>
+        <div id="batch-results"></div>
       </div>
-      <div class="card">
-        <div class="card-title"><span class="card-icon">🔬</span>Drift por Feature</div>
-        <div id="drift-details"></div>
-      </div>
-      <div class="btn-group">
-        <button class="btn btn-secondary" onclick="loadMonitoring()">🔄 Atualizar</button>
-      </div>
-    </div>
-  </main>
-</div>
 
-<div id="toast" class="toast"></div>
-<script src="/static/app.js"></script>
+      <!-- ===== MONITORING ===== -->
+      <div id="page-monitoring" class="page">
+        <h1 class="page-title">Monitoramento</h1>
+        <p class="page-subtitle">Acompanhe drift de dados e estatísticas de predição em tempo real</p>
+        <div class="metrics-grid">
+          <div class="metric-card blue">
+            <div class="metric-label">Predições</div>
+            <div class="metric-value" id="mon-total">0</div>
+          </div>
+          <div class="metric-card red">
+            <div class="metric-label">Taxa de Risco</div>
+            <div class="metric-value" id="mon-risk-rate">—</div>
+          </div>
+          <div class="metric-card amber">
+            <div class="metric-label">Probabilidade Média</div>
+            <div class="metric-value" id="mon-avg-prob">—</div>
+          </div>
+          <div class="metric-card purple">
+            <div class="metric-label">Drift Status</div>
+            <div class="metric-value" style="font-size:16px"><span id="mon-drift-status"
+                class="drift-status drift-warn">—</span></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title"><span class="card-icon">🔬</span>Drift por Feature</div>
+          <div id="drift-details"></div>
+        </div>
+        <div class="btn-group">
+          <button class="btn btn-secondary" onclick="loadMonitoring()">🔄 Atualizar</button>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div id="toast" class="toast"></div>
+  <script src="/static/app.js"></script>
 </body>
+
 </html>

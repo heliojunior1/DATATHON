@@ -69,9 +69,9 @@ async function submitPrediction() {
     const btn = document.getElementById('btn-predict');
     btn.classList.add('loading');
     try {
-        const fields = ['IAA', 'IEG', 'IPS', 'IDA', 'IPV', 'IAN', 'INDE_22', 'Matem', 'Portug', 'Ingles',
-            'Idade_22', 'Genero', 'Instituicao', 'Ano_ingresso', 'Pedra_22', 'Rec_psico',
-            'Atingiu_PV', 'Indicado', 'Cg', 'Cf', 'Ct', 'Num_Av',
+        const fields = ['IAA', 'IEG', 'IPS', 'IDA', 'IPV', 'IAN', 'INDE_22', 'Matem', 'Portug', 'Tem_nota_ingles',
+            'Fase', 'Idade_22', 'Genero', 'Instituicao', 'Ano_ingresso', 'Pedra_22',
+            'Atingiu_PV', 'Indicado', 'Cf', 'Ct', 'Num_Av',
             'Destaque_IEG', 'Destaque_IDA', 'Destaque_IPV'];
         const data = {};
         fields.forEach(f => {
@@ -79,14 +79,17 @@ async function submitPrediction() {
             if (!el) return;
             const v = el.value;
             if (v === '') return;
-            const numFields = ['IAA', 'IEG', 'IPS', 'IDA', 'IPV', 'IAN', 'INDE_22', 'Matem', 'Portug', 'Ingles', 'Idade_22', 'Ano_ingresso', 'Cg', 'Cf', 'Ct', 'Num_Av'];
+            const numFields = ['IAA', 'IEG', 'IPS', 'IDA', 'IPV', 'IAN', 'INDE_22', 'Matem', 'Portug', 'Tem_nota_ingles', 'Idade_22', 'Ano_ingresso', 'Cf', 'Ct', 'Num_Av'];
             data[el.dataset.key || f] = numFields.includes(f) ? parseFloat(v) : v;
         });
         const result = await api('/predict', {
             method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
         });
         showResult(result);
-    } catch (e) { console.error(e); }
+    } catch (e) {
+        console.error(e);
+        toast(e.message);
+    }
     btn.classList.remove('loading');
 }
 
@@ -113,8 +116,8 @@ function showResult(r) {
 // ===== BATCH PREDICTION =====
 function loadBatchExample() {
     document.getElementById('batch-json').value = JSON.stringify([
-        { "IAA": 7.5, "IEG": 8, "IPS": 6.5, "IDA": 7, "IPV": 5.5, "IAN": 5, "INDE 22": 7.2, "Matem": 7.5, "Portug": 6.8, "Idade 22": 14, "Gênero": "Menina", "Instituição de ensino": "Escola Pública", "Ano ingresso": 2018, "Pedra 22": "Ametista", "Rec Psicologia": "Sem limitações", "Atingiu PV": "Não", "Indicado": "Não", "Cg": 300, "Cf": 50, "Ct": 5, "Nº Av": 3, "Destaque IEG": "Não", "Destaque IDA": "Não", "Destaque IPV": "Não" },
-        { "IAA": 3.2, "IEG": 4.1, "IPS": 3.5, "IDA": 2.8, "IPV": 2.0, "IAN": 0, "INDE 22": 3.1, "Matem": 3.0, "Portug": 2.5, "Idade 22": 17, "Gênero": "Menino", "Instituição de ensino": "Escola Pública", "Ano ingresso": 2020, "Pedra 22": "Quartzo", "Rec Psicologia": "Requer avaliação", "Atingiu PV": "Não", "Indicado": "Não", "Cg": 700, "Cf": 150, "Ct": 15, "Nº Av": 4, "Destaque IEG": "Não", "Destaque IDA": "Não", "Destaque IPV": "Não" }
+        { "IAA": 7.5, "IEG": 8, "IPS": 6.5, "IDA": 7, "IPV": 5.5, "IAN": 5, "INDE 22": 7.2, "Matem": 7.5, "Portug": 6.8, "Tem_nota_ingles": 1, "Fase": "Fase 3", "Idade_22": 14, "Gênero": "Menina", "Instituição de ensino": "Escola Pública", "Ano ingresso": 2018, "Pedra 22": "Ametista", "Atingiu PV": "Não", "Indicado": "Não", "Cf": 50, "Ct": 5, "Nº Av": 3, "Destaque IEG": "Não", "Destaque IDA": "Não", "Destaque IPV": "Não" },
+        { "IAA": 3.2, "IEG": 4.1, "IPS": 3.5, "IDA": 2.8, "IPV": 2.0, "IAN": 0, "INDE 22": 3.1, "Matem": 3.0, "Portug": 2.5, "Tem_nota_ingles": 0, "Fase": "Fase 3", "Idade_22": 17, "Gênero": "Menino", "Instituição de ensino": "Escola Pública", "Ano ingresso": 2020, "Pedra 22": "Quartzo", "Atingiu PV": "Não", "Indicado": "Não", "Cf": 150, "Ct": 15, "Nº Av": 4, "Destaque IEG": "Não", "Destaque IDA": "Não", "Destaque IPV": "Não" }
     ], null, 2);
 }
 
@@ -191,7 +194,7 @@ async function loadMonitoring() {
 
 // ===== FILL EXAMPLE =====
 function fillExample() {
-    const ex = { IAA: 7.5, IEG: 8.0, IPS: 6.5, IDA: 7.0, IPV: 5.5, IAN: 5.0, INDE_22: 7.2, Matem: 7.5, Portug: 6.8, Ingles: 7.0, Idade_22: 14, Genero: 'Menina', Instituicao: 'Escola Pública', Ano_ingresso: 2018, Pedra_22: 'Ametista', Rec_psico: 'Sem limitações', Atingiu_PV: 'Não', Indicado: 'Não', Cg: 300, Cf: 50, Ct: 5, Num_Av: 3, Destaque_IEG: 'Não', Destaque_IDA: 'Não', Destaque_IPV: 'Não' };
+    const ex = { IAA: 7.5, IEG: 8.0, IPS: 6.5, IDA: 7.0, IPV: 5.5, IAN: 5.0, INDE_22: 7.2, Matem: 7.5, Portug: 6.8, Tem_nota_ingles: 1, Fase: 'Fase 3', Idade_22: 14, Genero: 'Menina', Instituicao: 'Escola Pública', Ano_ingresso: 2018, Pedra_22: 'Ametista', Atingiu_PV: 'Não', Indicado: 'Não', Cf: 50, Ct: 5, Num_Av: 3, Destaque_IEG: 'Não', Destaque_IDA: 'Não', Destaque_IPV: 'Não' };
     Object.entries(ex).forEach(([k, v]) => { const el = document.getElementById('f-' + k); if (el) el.value = v; });
     toast('Exemplo preenchido', 'success');
 }

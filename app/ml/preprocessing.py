@@ -13,7 +13,7 @@ from app.core.config import (
     GENERO_MAP,
     ESCOLA_MAP,
     PEDRA_ORDINAL_MAP,
-    REC_PSICO_MAP,
+    FASE_ORDINAL_MAP,
     REC_AVALIADOR_MAP,
 )
 from app.utils.helpers import setup_logger
@@ -97,8 +97,30 @@ def encode_categorical_columns(df: pd.DataFrame) -> pd.DataFrame:
             df[new_col] = df[col].map(PEDRA_ORDINAL_MAP)
             # Manter NaN para XGBoost lidar nativamente
 
-    # Recomendação Psicológica
-    df["Rec_psico_encoded"] = df["Rec Psicologia"].map(REC_PSICO_MAP).fillna(0).astype(int)
+    # Flags de presença para Pedras históricas (estratégia "Delta Neutro com Flag")
+    for year in ["20", "21"]:
+        col = f"Pedra {year}"
+        flag_col = f"tinha_pedra_{year}"
+        encoded_col = f"Pedra_{year}_encoded"
+        if col in df.columns:
+            df[flag_col] = df[col].notna().astype(int)
+            # Imputar encoded com 0 (neutro) para alunos sem histórico
+            if encoded_col in df.columns:
+                df[encoded_col] = df[encoded_col].fillna(0)
+
+    # Fase (ordinal: Alfa=0 ... Fase 8=8)
+    if "Fase" in df.columns:
+        # Tratar valores como "Fase 1", "Alfa", etc.
+        df["Fase_encoded"] = df["Fase"].map(FASE_ORDINAL_MAP)
+        # Para valores não mapeados, tentar extrair número
+        mask_null = df["Fase_encoded"].isna()
+        if mask_null.any():
+            df.loc[mask_null, "Fase_encoded"] = pd.to_numeric(
+                df.loc[mask_null, "Fase"], errors="coerce"
+            ).fillna(0)
+        df["Fase_encoded"] = df["Fase_encoded"].astype(int)
+
+    # Rec Psicologia removida — redundante com IPS (já capturado pelo indicador IPS)
 
     # Ponto de Virada (booleano)
     df["Ponto_virada_flag"] = (df["Atingiu PV"] == "Sim").astype(int)
@@ -121,6 +143,11 @@ def encode_categorical_columns(df: pd.DataFrame) -> pd.DataFrame:
         new_col = f"Rec_av{av_num}_encoded"
         if col in df.columns:
             df[new_col] = df[col].apply(_encode_rec_avaliador)
+
+    # Flags de presença para Rankings (preparação para produção — alunos novos não têm ranking)
+    for rank_col, flag_col in [("Cf", "tem_ranking_cf"), ("Ct", "tem_ranking_ct")]:
+        if rank_col in df.columns:
+            df[flag_col] = df[rank_col].notna().astype(int)
 
     logger.info("Variáveis categóricas codificadas com sucesso")
     return df
@@ -160,10 +187,12 @@ def handle_missing_values(df: pd.DataFrame) -> pd.DataFrame:
                 df[col] = df[col].fillna(median_val)
                 logger.info(f"  {col}: {n_nulls} nulos preenchidos com mediana ({median_val:.2f})")
 
-    # Inglês — 67% nulos, manter NaN para XGBoost tratar nativamente
-    n_ing_null = df["Inglês"].isnull().sum() if "Inglês" in df.columns else 0
-    if n_ing_null > 0:
-        logger.info(f"  Inglês: {n_ing_null} nulos mantidos (XGBoost trata nativamente)")
+    # Inglês — criar flag binária (tem/não tem nota) e remover coluna de nota
+    if "Inglês" in df.columns:
+        df["Tem_nota_ingles"] = df["Inglês"].notna().astype(int)
+        n_tem = df["Tem_nota_ingles"].sum()
+        logger.info(f"  Inglês: {n_tem} alunos com nota → Tem_nota_ingles criada, coluna de nota removida")
+        df = df.drop(columns=["Inglês"])
 
     logger.info("Tratamento de valores ausentes concluído")
     return df

@@ -35,7 +35,12 @@ def main():
     parser.add_argument(
         "--no-ian",
         action="store_true",
-        help="Exclui a feature IAN do modelo (evita data leakage)",
+        help="Exclui a feature IAN do modelo (já é o padrão)",
+    )
+    parser.add_argument(
+        "--include-ian",
+        action="store_true",
+        help="Inclui a feature IAN (para comparação — cuidado: data leakage)",
     )
     parser.add_argument(
         "--n-iter",
@@ -46,9 +51,17 @@ def main():
 
     args = parser.parse_args()
 
+    # Determinar include_ian: --include-ian tem prioridade, senão usa config default (False)
+    if args.include_ian:
+        include_ian = True
+    elif args.no_ian:
+        include_ian = False
+    else:
+        include_ian = None  # Usa config.INCLUDE_IAN (default: False)
+
     results = run_training_pipeline(
         filepath=args.data,
-        include_ian=not args.no_ian,
+        include_ian=include_ian,
         optimize=not args.no_optimize,
         n_iter=args.n_iter,
     )

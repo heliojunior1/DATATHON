@@ -33,8 +33,11 @@ TRAIN_METADATA_PATH = MODELS_DIR / TRAIN_METADATA_FILENAME
 REFERENCE_DIST_FILENAME = f"{MODEL_NAME}_v{MODEL_VERSION}_reference.joblib"
 REFERENCE_DIST_PATH = MODELS_DIR / REFERENCE_DIST_FILENAME
 
-# Limiar para classificação binária de risco
-DEFASAGEM_THRESHOLD = -2  # Defas <= -2 => em risco
+# Limiar para classificação binária de risco (abordagem preventiva)
+DEFASAGEM_THRESHOLD = -1  # Defas <= -1 (equivale a Defas < 0) => em risco
+
+# Flag para incluir/excluir IAN (desativado por padrão — data leakage, corr 0.838 com target)
+INCLUDE_IAN = False
 
 # Mapeamento ordinal das Pedras (classificação Passos Mágicos)
 PEDRA_ORDINAL_MAP = {
@@ -57,13 +60,23 @@ ESCOLA_MAP = {
     "Escola JP II": 2,
 }
 
-# Mapeamento de Recomendação Psicológica (ordenado por severidade)
-REC_PSICO_MAP = {
-    "Não avaliado": 0,
-    "Não atendido": 1,
-    "Sem limitações": 2,
-    "Não indicado": 3,
-    "Requer avaliação": 4,
+# Mapeamento ordinal das Fases (progressão escolar)
+FASE_ORDINAL_MAP = {
+    "Alfa": 0, "Fase 1": 1, "Fase 2": 2, "Fase 3": 3,
+    "Fase 4": 4, "Fase 5": 5, "Fase 6": 6, "Fase 7": 7, "Fase 8": 8,
+}
+
+# Idade máxima esperada por fase (para feature mismatch_idade_fase)
+IDADE_MAX_ESPERADA = {
+    0: 8,   # Alfa (2º/3º ano)
+    1: 10,  # Fase 1 (4º ano)
+    2: 12,  # Fase 2 (5º/6º ano)
+    3: 14,  # Fase 3 (7º/8º ano)
+    4: 15,  # Fase 4 (9º ano)
+    5: 16,  # Fase 5 (1º EM)
+    6: 17,  # Fase 6 (2º EM)
+    7: 18,  # Fase 7 (3º EM)
+    8: 19,  # Fase 8
 }
 
 # Mapeamento de Recomendações de Avaliadores
@@ -81,32 +94,39 @@ INDICATOR_COLUMNS = [
     "IAA", "IEG", "IPS", "IDA", "IPV", "IAN", "INDE 22",
 ]
 
-# Colunas de notas
-GRADE_COLUMNS = ["Matem", "Portug", "Inglês"]
+# Colunas de notas (Inglês removido — 67% nulos, usar flag Tem_nota_ingles)
+GRADE_COLUMNS = ["Matem", "Portug"]
 
 # Features selecionadas para o modelo (definidas após feature engineering)
 SELECTED_FEATURES = [
-    # Indicadores PEDE
+    # Indicadores PEDE (IAN incluído, controlado pela flag INCLUDE_IAN)
     "IAA", "IEG", "IPS", "IDA", "IPV", "IAN", "INDE 22",
-    # Notas
-    "Matem", "Portug", "Inglês",
+    # Notas (sem Inglês)
+    "Matem", "Portug",
     # Demográficas
     "Idade 22", "Genero_encoded", "Escola_encoded", "Anos_na_PM",
-    # Evolução
+    # Fase (ordinal)
+    "Fase_encoded",
+    # Evolução Pedras (com flags de presença)
     "Pedra_20_encoded", "Pedra_21_encoded", "Pedra_22_encoded",
     "Evolucao_pedra_20_22", "Evolucao_pedra_21_22",
-    # Categóricas transformadas
-    "Rec_psico_encoded",
+    "tinha_pedra_20", "tinha_pedra_21",
     # Flags
     "Ponto_virada_flag", "Indicado_flag",
     "Destaque_IEG_flag", "Destaque_IDA_flag", "Destaque_IPV_flag",
+    "Tem_nota_ingles",
     # Avaliadores
     "Rec_av1_encoded", "Rec_av2_encoded",
-    # Rankings
-    "Cg", "Cf", "Ct", "Nº Av",
+    # Rankings (com flags de presença para produção)
+    "Cf", "Ct", "Nº Av",
+    "tem_ranking_cf", "tem_ranking_ct",
+    # Features derivadas novas
+    "Variancia_indicadores", "Ratio_IDA_IEG",
+    # REMOVIDAS: delta_idade_fase (corr 0.708) e mismatch_idade_fase (corr 0.553)
+    # são proxies diretos de Defas (target) → data leakage
 ]
 
-# Features SEM IAN (para modelo alternativo — evita data leakage)
+# Features SEM IAN (para modelo padrão — evita data leakage)
 SELECTED_FEATURES_NO_IAN = [f for f in SELECTED_FEATURES if f != "IAN"]
 
 # Configurações de treinamento

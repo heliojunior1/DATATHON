@@ -19,6 +19,7 @@ from app.core.config import (
     CV_FOLDS,
     MODEL_NAME,
     MODEL_VERSION,
+    INCLUDE_IAN,
 )
 from app.ml.preprocessing import preprocess_dataset
 from app.ml.feature_engineering import run_feature_engineering, select_features
@@ -154,7 +155,7 @@ def save_model_artifacts(
 
 def run_training_pipeline(
     filepath: str | Path | None = None,
-    include_ian: bool = True,
+    include_ian: bool | None = None,
     optimize: bool = True,
     n_iter: int = 50,
 ) -> dict:
@@ -163,13 +164,15 @@ def run_training_pipeline(
 
     Args:
         filepath: Caminho do dataset.
-        include_ian: Se True, inclui a feature IAN.
+        include_ian: Se True, inclui a feature IAN. Se None, usa config.INCLUDE_IAN.
         optimize: Se True, faz busca de hiperparâmetros.
         n_iter: Número de iterações para busca.
 
     Returns:
         Dicionário com métricas e resultados.
     """
+    if include_ian is None:
+        include_ian = INCLUDE_IAN
     logger.info("=" * 70)
     logger.info("  PIPELINE DE TREINAMENTO - Datathon Passos Mágicos  ")
     logger.info("=" * 70)

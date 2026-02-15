@@ -68,8 +68,31 @@ class TestPrepareInputFeatures:
 
     def test_evolucao_pedra_calculation(self):
         input_data = {"Pedra_20": "Ágata", "Pedra_22": "Topázio"}
-        df = prepare_input_features(input_data, ["Pedra_20_encoded", "Pedra_22_encoded", "Evolucao_pedra_20_22"])
+        df = prepare_input_features(input_data, ["Pedra_20_encoded", "Pedra_22_encoded", "Evolucao_pedra_20_22", "tinha_pedra_20"])
         assert df["Evolucao_pedra_20_22"].iloc[0] == 2  # 4 - 2
+        assert df["tinha_pedra_20"].iloc[0] == 1
+
+    def test_fase_encoding(self):
+        input_data = {"Fase": "Fase 3"}
+        df = prepare_input_features(input_data, ["Fase_encoded"])
+        assert df["Fase_encoded"].iloc[0] == 3
+
+    def test_tem_nota_ingles_inference(self):
+        input_data = {"Inglês": 7.5}
+        df = prepare_input_features(input_data, ["Tem_nota_ingles"])
+        assert df["Tem_nota_ingles"].iloc[0] == 1
+
+        input_data_sem = {}
+        df2 = prepare_input_features(input_data_sem, ["Tem_nota_ingles"])
+        assert df2["Tem_nota_ingles"].iloc[0] == 0
+
+    def test_delta_neutro_no_pedra(self):
+        """Sem Pedra 20, delta deve ser 0."""
+        input_data = {"Pedra_22": "Topázio"}
+        df = prepare_input_features(input_data, ["Pedra_20_encoded", "Pedra_22_encoded", "Evolucao_pedra_20_22", "tinha_pedra_20"])
+        assert df["tinha_pedra_20"].iloc[0] == 0
+        assert df["Evolucao_pedra_20_22"].iloc[0] == 0  # Delta neutro
+        assert df["Pedra_20_encoded"].iloc[0] == 0  # Imputado com 0
 
 
 class TestPredict:

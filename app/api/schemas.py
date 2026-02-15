@@ -14,13 +14,13 @@ class StudentInput(BaseModel):
     IPS: float = Field(..., ge=0, le=10, description="Indicador Psicossocial (0-10)")
     IDA: float = Field(..., ge=0, le=10, description="Indicador de Aprendizagem (0-10)")
     IPV: float = Field(..., ge=0, le=10, description="Indicador de Ponto de Virada (0-10)")
-    IAN: float = Field(..., ge=0, le=10, description="Indicador de Adequação ao Nível (0-10)")
+    IAN: Optional[float] = Field(None, ge=0, le=10, description="Indicador de Adequação ao Nível (0-10) — desativado por padrão (data leakage)")
     INDE_22: float = Field(..., ge=0, le=10, description="Índice de Desenvolvimento Educacional", alias="INDE 22")
 
-    # Notas
+    # Notas (Inglês removido — 67% nulos)
     Matem: float = Field(..., ge=0, le=10, description="Nota de Matemática")
     Portug: float = Field(..., ge=0, le=10, description="Nota de Português")
-    Ingles: Optional[float] = Field(None, ge=0, le=10, description="Nota de Inglês (opcional)", alias="Inglês")
+    Tem_nota_ingles: Optional[int] = Field(None, ge=0, le=1, description="1 se tem nota de inglês, 0 se não")
 
     # Demográficas
     Idade_22: int = Field(..., ge=5, le=25, description="Idade do aluno em 2022", alias="Idade 22")
@@ -32,24 +32,20 @@ class StudentInput(BaseModel):
     )
     Ano_ingresso: int = Field(..., ge=2010, le=2023, description="Ano de ingresso na Passos Mágicos", alias="Ano ingresso")
 
+    # Fase (nova)
+    Fase: Optional[str] = Field(None, description="Fase do aluno: 'Alfa', 'Fase 1'...'Fase 8'")
+
     # Classificação Pedras (opcionais — podem ter nulos)
     Pedra_20: Optional[str] = Field(None, description="Classificação Pedra 2020", alias="Pedra 20")
     Pedra_21: Optional[str] = Field(None, description="Classificação Pedra 2021", alias="Pedra 21")
     Pedra_22: str = Field(..., description="Classificação Pedra 2022", alias="Pedra 22")
 
-    # Psicologia e avaliação
-    Rec_Psicologia: str = Field(
-        ...,
-        description="Recomendação da Psicologia",
-        alias="Rec Psicologia",
-    )
     Atingiu_PV: str = Field(..., description="Atingiu Ponto de Virada: 'Sim' ou 'Não'", alias="Atingiu PV")
     Indicado: str = Field(..., description="Indicado para Bolsa: 'Sim' ou 'Não'")
 
-    # Rankings
-    Cg: int = Field(..., ge=0, description="Classificação Geral")
-    Cf: int = Field(..., ge=0, description="Classificação na Fase")
-    Ct: int = Field(..., ge=0, description="Classificação na Turma")
+    # Rankings (opcionais para alunos novos)
+    Cf: Optional[int] = Field(None, ge=0, description="Classificação na Fase (opcional para alunos novos)")
+    Ct: Optional[int] = Field(None, ge=0, description="Classificação na Turma (opcional para alunos novos)")
     N_Av: int = Field(..., ge=1, le=4, description="Número de Avaliações", alias="Nº Av")
 
     # Destaques

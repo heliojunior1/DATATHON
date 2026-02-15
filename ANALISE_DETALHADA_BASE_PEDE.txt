@@ -27,7 +27,7 @@ Abaixo, a análise completa com recomendações.
 | **IPS** | Psicossocial | 0% | μ=não informado | ✅ **USAR** |
 | **IDA** | Aprendizagem (média de provas) | 0% | μ=6.09, σ=2.05 | ✅ **USAR** — correlação 0.83–0.90 com notas |
 | **IPV** | Ponto de Virada | 0% | contínuo 0–10 | ✅ **USAR** |
-| **IAN** | Adequação ao Nível (discreto: 0, 5 ou 10) | 0% | μ=6.42, σ=2.39 | ❌ **REMOVER** — leakage (corr 0.838 com Defas) |
+| **IAN** | Adequação ao Nível (discreto: 0, 5 ou 10) | 0% | μ=6.42, σ=2.39 | ❌ usar uma flag para remover — leakage (corr 0.838 com Defas) |
 
 ### B) Notas por Disciplina
 
@@ -228,7 +228,7 @@ Target = 1 se Defasagem < 0 (ou seja, -1, -2, -3...)
 
 ### 📋 Steps de implementação sugeridos
 
-1. **Remover** `IAN`, `Defas`, `Fase ideal`, `RA`, `Nome`, `Turma`, `Avaliador1-4`, `Rec Av3`, `Rec Av4`
+1. **Remover**  `Defas`, `Fase ideal`, `RA`, `Nome`, `Turma`, `Avaliador1-4`, `Rec Av3`, `Rec Av4`
 2. **Tratar Inglês**: remover coluna OU criar flag `tem_nota_ingles` + manter NaN
 3. **Imputar** `Matem` e `Portug` com mediana (apenas 2 nulos cada)
 4. **Pedras históricas**: Encode ordinal (Quartzo=1, Ágata=2, Ametista=3, Topázio=4). Aplicar estratégia **"Delta Neutro com Flag"**: criar flags `tinha_pedra_20` e `tinha_pedra_21`, forçar delta a `0` para alunos sem histórico (evitar inflação artificial), imputar Pedra bruta com `0`
@@ -248,7 +248,7 @@ Target = 1 se Defasagem < 0 (ou seja, -1, -2, -3...)
 ### 🧭 Decisões Técnicas
 
 - **XGBoost não requer normalização**, mas se for testar ensemble com modelos lineares, aplicar `StandardScaler` + `PowerTransformer` para IAA
-- **IAN deve ser excluído** do modelo principal por data leakage
+- **IAN  colocar uma flag para inicialmente iniciar com ian desativo para evitar  data leakage
 - **Inglês**: remover é mais conservador; manter com flag é mais informativo mas arriscado com 67% NaN
 - **Rankings** `Cf` e `Ct` mantidos por trazerem informação relativa (posição dentro do grupo), diferente de `Cg` que é diretamente derivado de INDE
 > **⚠️ Alerta para Produção (API) — Rankings de alunos novos:**
@@ -266,3 +266,39 @@ Target = 1 se Defasagem < 0 (ou seja, -1, -2, -3...)
 > 2. **Imputar NaN** com valor neutro: **mediana da fase/turma** ou valor **-1** (fora da escala natural)
 > 3. **Injetar NaN artificial no treino**: durante o treinamento, forçar ~10-15% dos rankings a NaN aleatoriamente para que o modelo aprenda a lidar com a ausência
 >
+
+
+Causa Raiz
+A coluna Defas (nosso target) é definida como Defas = Fase - Fase Ideal — mede a diferença entre a fase atual e a fase ideal baseada na idade.
+
+As features 
+
+delta_idade_fase
+ e 
+
+mismatch_idade_fase
+ que criamos fazem exatamente a mesma coisa: comparam idade com a fase esperada. São proxies diretos do target.
+
+Correlações com o Target
+Feature	Correlação	Status
+
+delta_idade_fase
+0.708	🔴 LEAKAGE
+
+mismatch_idade_fase
+0.553	🔴 LEAKAGE
+Idade 22	0.277	⚠️ Contribui junto com Fase
+Pedra_22_encoded	-0.377	✅ OK
+INDE 22	-0.369	✅ OK
+Cf / Ct	0.36 / 0.34	✅ OK
+Plano de Correção
+Remover 
+
+delta_idade_fase
+ e 
+
+mismatch_idade_fase
+ de SELECTED_FEATURES — são proxies do target
+Manter Idade 22 e Fase_encoded isoladamente — cada uma sozinha tem correlação aceitável, o leakage ocorre na combinação (delta)
+Retreinar o modelo sem --no-optimize
+Esperar métricas mais realistas (provavelmente 75-85% accuracy)

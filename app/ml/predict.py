@@ -14,7 +14,8 @@ from app.core.config import (
     PEDRA_ORDINAL_MAP,
     GENERO_MAP,
     ESCOLA_MAP,
-    REC_PSICO_MAP,
+    FASE_ORDINAL_MAP,
+    IDADE_MAX_ESPERADA,
 )
 from app.utils.helpers import setup_logger
 
@@ -82,7 +83,7 @@ def prepare_input_features(input_data: dict, feature_names: list[str]) -> pd.Dat
     """
     features = {}
 
-    # Indicadores diretos
+    # Indicadores diretos (IAN incluído apenas se estiver no modelo treinado)
     direct_mapping = {
         "IAA": "IAA",
         "IEG": "IEG",
@@ -93,9 +94,7 @@ def prepare_input_features(input_data: dict, feature_names: list[str]) -> pd.Dat
         "INDE 22": "INDE_22",
         "Matem": "Matem",
         "Portug": "Portug",
-        "Inglês": "Ingles",
         "Idade 22": "Idade_22",
-        "Cg": "Cg",
         "Cf": "Cf",
         "Ct": "Ct",
         "Nº Av": "N_Av",
@@ -123,6 +122,16 @@ def prepare_input_features(input_data: dict, feature_names: list[str]) -> pd.Dat
         else:
             features["Escola_encoded"] = escola if escola is not None else 0
 
+    # Fase (ordinal encoding)
+    if "Fase_encoded" in feature_names:
+        fase = input_data.get("Fase_encoded", input_data.get("Fase"))
+        if isinstance(fase, str):
+            features["Fase_encoded"] = FASE_ORDINAL_MAP.get(fase, 0)
+        elif fase is not None:
+            features["Fase_encoded"] = int(fase)
+        else:
+            features["Fase_encoded"] = 0
+
     # Anos na PM
     if "Anos_na_PM" in feature_names:
         anos = input_data.get("Anos_na_PM", input_data.get("Ano ingresso", input_data.get("Ano_ingresso")))
@@ -143,30 +152,54 @@ def prepare_input_features(input_data: dict, feature_names: list[str]) -> pd.Dat
             else:
                 features[col] = val
 
-    # Evolução das Pedras - Recalcular sempre se possível, pois input pode não ter
+    # Flags de presença para Pedras históricas
+    for year in ["20", "21"]:
+        flag_col = f"tinha_pedra_{year}"
+        if flag_col in feature_names:
+            pedra_val = features.get(f"Pedra_{year}_encoded")
+            features[flag_col] = 1 if pedra_val is not None and not (isinstance(pedra_val, float) and np.isnan(pedra_val)) else 0
+            # Imputar encoded com 0 se não tem histórico
+            if features[flag_col] == 0:
+                features[f"Pedra_{year}_encoded"] = 0
+
+    # Evolução das Pedras - Recalcular sempre se possível
     if "Evolucao_pedra_20_22" in feature_names:
         p20 = features.get("Pedra_20_encoded")
         p22 = features.get("Pedra_22_encoded")
-        if p20 is not None and p22 is not None:
+        tinha_20 = features.get("tinha_pedra_20", 1)
+        if tinha_20 == 0:
+            features["Evolucao_pedra_20_22"] = 0  # Delta neutro
+        elif p20 is not None and p22 is not None:
             features["Evolucao_pedra_20_22"] = p22 - p20
         else:
-            features["Evolucao_pedra_20_22"] = input_data.get("Evolucao_pedra_20_22")
+            features["Evolucao_pedra_20_22"] = input_data.get("Evolucao_pedra_20_22", 0)
 
     if "Evolucao_pedra_21_22" in feature_names:
         p21 = features.get("Pedra_21_encoded")
         p22 = features.get("Pedra_22_encoded")
-        if p21 is not None and p22 is not None:
+        tinha_21 = features.get("tinha_pedra_21", 1)
+        if tinha_21 == 0:
+            features["Evolucao_pedra_21_22"] = 0  # Delta neutro
+        elif p21 is not None and p22 is not None:
             features["Evolucao_pedra_21_22"] = p22 - p21
         else:
-            features["Evolucao_pedra_21_22"] = input_data.get("Evolucao_pedra_21_22")
+            features["Evolucao_pedra_21_22"] = input_data.get("Evolucao_pedra_21_22", 0)
 
-    # Rec Psicologia
-    if "Rec_psico_encoded" in feature_names:
-        rec = input_data.get("Rec_psico_encoded", input_data.get("Rec Psicologia", input_data.get("Rec_Psicologia")))
-        if isinstance(rec, str):
-            features["Rec_psico_encoded"] = REC_PSICO_MAP.get(rec, 0)
+    # Flags de presença para Rankings (fallback para alunos novos)
+    for rank_col, flag_col in [("Cf", "tem_ranking_cf"), ("Ct", "tem_ranking_ct")]:
+        if flag_col in feature_names:
+            rank_val = features.get(rank_col)
+            features[flag_col] = 1 if rank_val is not None else 0
+
+    # Tem nota de inglês (flag binária)
+    if "Tem_nota_ingles" in feature_names:
+        tem = input_data.get("Tem_nota_ingles")
+        if tem is None:
+            # Inferir: se o input tem campo "Inglês" ou "Ingles" com valor não None
+            ingles_val = input_data.get("Inglês", input_data.get("Ingles"))
+            features["Tem_nota_ingles"] = 1 if ingles_val is not None else 0
         else:
-            features["Rec_psico_encoded"] = rec if rec is not None else 0
+            features["Tem_nota_ingles"] = int(tem)
 
     # Flags booleanas
     bool_mapping = {
@@ -195,6 +228,45 @@ def prepare_input_features(input_data: dict, feature_names: list[str]) -> pd.Dat
         col = f"Rec_av{av_num}_encoded"
         if col in feature_names:
             features[col] = input_data.get(col, 0)
+
+    # Features derivadas — calcular se possível
+    # Variância dos indicadores
+    if "Variancia_indicadores" in feature_names:
+        val = input_data.get("Variancia_indicadores")
+        if val is not None:
+            features["Variancia_indicadores"] = val
+        else:
+            ind_vals = [features.get(c) for c in ["IAA", "IEG", "IPS", "IDA", "IPV"] if features.get(c) is not None]
+            if len(ind_vals) >= 3:
+                features["Variancia_indicadores"] = float(np.std(ind_vals, ddof=1))
+            else:
+                features["Variancia_indicadores"] = 0.0
+
+    # Ratio IDA/IEG
+    if "Ratio_IDA_IEG" in feature_names:
+        val = input_data.get("Ratio_IDA_IEG")
+        if val is not None:
+            features["Ratio_IDA_IEG"] = val
+        else:
+            ida = features.get("IDA", 0) or 0
+            ieg = features.get("IEG", 0) or 0
+            features["Ratio_IDA_IEG"] = ida / (ieg + 0.01)
+
+    # Mismatch e delta idade-fase
+    if "delta_idade_fase" in feature_names or "mismatch_idade_fase" in feature_names:
+        delta = input_data.get("delta_idade_fase")
+        if delta is None:
+            idade = features.get("Idade 22") or input_data.get("Idade 22", input_data.get("Idade_22"))
+            fase_enc = features.get("Fase_encoded", 0)
+            if idade is not None and fase_enc is not None:
+                idade_esp = IDADE_MAX_ESPERADA.get(int(fase_enc), 15)
+                delta = float(idade) - idade_esp
+            else:
+                delta = 0.0
+        if "delta_idade_fase" in feature_names:
+            features["delta_idade_fase"] = delta
+        if "mismatch_idade_fase" in feature_names:
+            features["mismatch_idade_fase"] = 1 if delta > 0 else 0
 
     # Criar DataFrame com as features na ordem correta
     df = pd.DataFrame([features])

@@ -218,6 +218,6 @@ def check_all_drift() -> dict:
         "total_features_checked": len(results),
         "drift_detected": drift_count,
         "warnings": warning_count,
-        "features": results,  # RENAMED FROM 'details' TO 'features' FOR FRONTEND MATCH
+        "details": results,
         "prediction_stats": get_prediction_stats(),
     }

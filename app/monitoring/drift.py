@@ -84,72 +84,60 @@ def calculate_psi(reference: np.ndarray, production: np.ndarray, bins: int = 10)
     PSI < 0.1  → Sem drift significativo
     PSI 0.1-0.2 → Drift moderado
     PSI > 0.2  → Drift significativo
-
-    Args:
-        reference: Distribuição de referência (treinamento).
-        production: Distribuição de produção.
-        bins: Número de bins para discretização.
-
-    Returns:
-        Valor PSI.
     """
     eps = 1e-6
 
-    # Criar bins baseados na distribuição de referência
-    breakpoints = np.linspace(
-        min(np.min(reference), np.min(production)),
-        max(np.max(reference), np.max(production)),
-        bins + 1,
-    )
+    try:
+        # Criar bins baseados na distribuição combinada
+        breakpoints = np.linspace(
+            min(np.min(reference), np.min(production)),
+            max(np.max(reference), np.max(production)),
+            bins + 1,
+        )
 
-    ref_counts = np.histogram(reference, bins=breakpoints)[0] / len(reference) + eps
-    prod_counts = np.histogram(production, bins=breakpoints)[0] / len(production) + eps
+        ref_counts = np.histogram(reference, bins=breakpoints)[0] / len(reference) + eps
+        prod_counts = np.histogram(production, bins=breakpoints)[0] / len(production) + eps
 
-    psi = np.sum((prod_counts - ref_counts) * np.log(prod_counts / ref_counts))
-    return float(psi)
+        psi = np.sum((prod_counts - ref_counts) * np.log(prod_counts / ref_counts))
+        return float(psi)
+    except Exception:
+        return 0.0
 
 
-def check_drift(feature_name: str, production_values: np.ndarray) -> dict:
+def check_drift(feature_name: str, production_values: np.ndarray, reference_sample: pd.DataFrame) -> dict:
     """
-    Verifica drift para uma feature específica.
+    Verifica drift para uma feature específica usando KS-test contra dados reais.
 
     Args:
         feature_name: Nome da feature.
         production_values: Valores de produção.
+        reference_sample: DataFrame com amostra de treino.
 
     Returns:
         Dicionário com resultados do teste de drift.
     """
-    # Carregar distribuição de referência
-    if not REFERENCE_DIST_PATH.exists():
-        return {"error": "Distribuição de referência não encontrada. Treine o modelo primeiro."}
-
-    reference_stats = joblib.load(REFERENCE_DIST_PATH)
-
-    if feature_name not in reference_stats:
+    if feature_name not in reference_sample.columns:
         return {"error": f"Feature '{feature_name}' não encontrada na referência."}
 
-    ref = reference_stats[feature_name]
+    ref_values = reference_sample[feature_name].dropna().values
     prod_values = np.array(production_values, dtype=float)
     prod_values = prod_values[~np.isnan(prod_values)]
 
     if len(prod_values) < 5:
         return {"warning": "Poucos dados de produção para análise de drift."}
 
-    # Statisticas de produção
-    prod_stats = {
-        "mean": float(np.mean(prod_values)),
-        "std": float(np.std(prod_values)),
-        "min": float(np.min(prod_values)),
-        "max": float(np.max(prod_values)),
-    }
+    # Estatísticas
+    ref_mean = float(np.mean(ref_values))
+    ref_std = float(np.std(ref_values))
+    prod_mean = float(np.mean(prod_values))
+    
+    # Teste KS (Kolmogorov-Smirnov) REAIS
+    # Compara a distribuição de produção com a amostra real de treino
+    ks_stat, ks_pvalue = scipy_stats.ks_2samp(ref_values, prod_values)
 
-    # Teste KS (Kolmogorov-Smirnov) simulado contra distribuição normal de referência
-    ref_simulated = np.random.normal(ref["mean"], max(ref["std"], 1e-6), size=1000)
-    ks_stat, ks_pvalue = scipy_stats.ks_2samp(ref_simulated, prod_values)
-
-    # Desvio da média
-    mean_shift = abs(prod_stats["mean"] - ref["mean"]) / max(ref["std"], 1e-6)
+    # Desvio da média (z-score shift)
+    div = ref_std if ref_std > 1e-6 else 1.0
+    mean_shift = abs(prod_mean - ref_mean) / div
 
     # Classificação do drift
     if ks_pvalue < 0.01 or mean_shift > 2.0:
@@ -164,11 +152,9 @@ def check_drift(feature_name: str, production_values: np.ndarray) -> dict:
         "drift_status": drift_status,
         "ks_statistic": float(ks_stat),
         "ks_pvalue": float(ks_pvalue),
-        "mean_shift_sigmas": float(mean_shift),
-        "reference_mean": ref["mean"],
-        "production_mean": prod_stats["mean"],
-        "reference_std": ref["std"],
-        "production_std": prod_stats["std"],
+        "mean_shift": float(mean_shift), # Renamed for frontend consistency
+        "reference_mean": ref_mean,
+        "production_mean": prod_mean,
     }
 
 
@@ -185,14 +171,21 @@ def check_all_drift() -> dict:
     if not REFERENCE_DIST_PATH.exists():
         return {"status": "NO_REFERENCE", "message": "Distribuição de referência não encontrada."}
 
-    reference_stats = joblib.load(REFERENCE_DIST_PATH)
+    # Carregar amostra real (DataFrame)
+    try:
+        reference_sample = joblib.load(REFERENCE_DIST_PATH)
+        if not isinstance(reference_sample, pd.DataFrame):
+            # Fallback se carregar versão antiga (dict)
+            return {"status": "ERROR", "message": "Formato de referência incompatível (re-treine o modelo)."}
+    except Exception as e:
+        return {"status": "ERROR", "message": f"Erro ao carregar referência: {str(e)}"}
 
     # Coletar valores por feature dos logs
     feature_values = {}
     for entry in _prediction_log:
         features = entry.get("features", {})
         for feat_name, value in features.items():
-            if value is not None and feat_name in reference_stats:
+            if value is not None and feat_name in reference_sample.columns:
                 if feat_name not in feature_values:
                     feature_values[feat_name] = []
                 try:
@@ -206,7 +199,8 @@ def check_all_drift() -> dict:
 
     for feat_name, values in feature_values.items():
         if len(values) >= 5:
-            result = check_drift(feat_name, np.array(values))
+            # Pass full reference dataframe
+            result = check_drift(feat_name, np.array(values), reference_sample)
             results[feat_name] = result
             if result.get("drift_status") == "DRIFT_DETECTED":
                 drift_count += 1
@@ -224,6 +218,6 @@ def check_all_drift() -> dict:
         "total_features_checked": len(results),
         "drift_detected": drift_count,
         "warnings": warning_count,
-        "details": results,
+        "features": results,  # RENAMED FROM 'details' TO 'features' FOR FRONTEND MATCH
         "prediction_stats": get_prediction_stats(),
     }

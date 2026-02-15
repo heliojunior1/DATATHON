@@ -145,21 +145,11 @@ def save_model_artifacts(
     logger.info(f"Metadados salvos em: {TRAIN_METADATA_PATH}")
 
     # Salvar distribuição de referência (para monitoramento de drift)
-    reference_stats = {}
-    for col in X_train.columns:
-        col_data = X_train[col].dropna()
-        if len(col_data) > 0:
-            reference_stats[col] = {
-                "mean": float(col_data.mean()),
-                "std": float(col_data.std()),
-                "min": float(col_data.min()),
-                "max": float(col_data.max()),
-                "median": float(col_data.median()),
-                "q25": float(col_data.quantile(0.25)),
-                "q75": float(col_data.quantile(0.75)),
-            }
-    joblib.dump(reference_stats, REFERENCE_DIST_PATH)
-    logger.info(f"Distribuição de referência salva em: {REFERENCE_DIST_PATH}")
+    # Salvar uma amostra dos dados de treino para comparação de drift real (KS-test)
+    sample_size = min(len(X_train), 1000)
+    reference_sample = X_train.sample(n=sample_size, random_state=42)
+    joblib.dump(reference_sample, REFERENCE_DIST_PATH)
+    logger.info(f"Amostra de referência ({sample_size} registros) salva em: {REFERENCE_DIST_PATH}")
 
 
 def run_training_pipeline(

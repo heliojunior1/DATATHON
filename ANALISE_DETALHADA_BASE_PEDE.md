@@ -1,0 +1,268 @@
+# 📊 Análise Detalhada da Base PEDE — Features, Normalização e Dados Faltantes
+
+---
+
+## TL;DR
+
+A base possui **3 abas** (PEDE2022: 860 alunos × 42 colunas, PEDE2023: 1014 × 48, PEDE2024: 1156 × 50) em formato wide. O target atual é `risco_defasagem` (binário, derivado de `Defas <= 0`). Existem **27 features** selecionadas no pipeline atual, mas há problemas críticos:
+
+- **IAN** causa **data leakage** (correlação 0.838 com o target)
+- **Inglês** tem **67% de nulos**. Siga sua "Opção A" (Remover a coluna de nota), mas mantenha a feature derivada Tem_nota_ingles (binária), pois o simples fato de ter aula de inglês pode indicar uma turma ou fase mais avançada/estruturad
+- **Pedra 20** tem **62% de nulos**
+- Vários indicadores têm distribuições assimétricas (IAA skew = **-2.91**)
+
+Abaixo, a análise completa com recomendações.
+
+---
+
+## 1. Inventário Completo de Colunas (PEDE2022 — base de treino)
+
+### A) Indicadores Educacionais (escala 0–10)
+
+| Coluna | Descrição | Nulos | Distribuição | Ação |
+|--------|-----------|-------|--------------|------|
+| **INDE 22** | Índice de Desenvolvimento Educacional (composto) | 0% | μ=7.04, σ=1.02 | ✅ **USAR** — feature principal |
+| **IAA** | Auto-Avaliação | 0% | μ=8.27, σ=2.06, **skew=-2.91** | ✅ **USAR** — precisa normalização |
+| **IEG** | Engajamento (entrega de lições) | 0% | μ=7.89, σ=1.64, skew=-1.10 | ✅ **USAR** — precisa normalização |
+| **IPS** | Psicossocial | 0% | μ=não informado | ✅ **USAR** |
+| **IDA** | Aprendizagem (média de provas) | 0% | μ=6.09, σ=2.05 | ✅ **USAR** — correlação 0.83–0.90 com notas |
+| **IPV** | Ponto de Virada | 0% | contínuo 0–10 | ✅ **USAR** |
+| **IAN** | Adequação ao Nível (discreto: 0, 5 ou 10) | 0% | μ=6.42, σ=2.39 | ❌ **REMOVER** — leakage (corr 0.838 com Defas) |
+
+### B) Notas por Disciplina
+
+| Coluna | Nulos | Ação |
+|--------|-------|------|
+| **Matem** | 0.23% (2 alunos) | ✅ **USAR** — imputar com mediana |
+| **Portug** | 0.23% (2 alunos) | ✅ **USAR** — imputar com mediana |
+| **Inglês** | **67.09%** (577 alunos) | Siga sua "Opção A" (Remover a coluna de nota), mas mantenha a feature derivada Tem_nota_ingles (binária), pois o simples fato de ter aula de inglês pode indicar uma turma ou fase mais avançada/estruturad
+
+| **Fase** | 0% | ✅ **USAR** — encode ordinal numérico (ver detalhes abaixo) |
+
+> **📝 Esclarecimento sobre a Fase:**
+> A `Fase` isoladamente **não é data leakage** — ela representa o contexto de progressão escolar do aluno (em qual etapa do programa ele está). O **vazamento real** ocorre ao combinar `Fase` com `Fase Ideal`, pois essa diferença **é** a variável target (`Defas = Fase - Fase Ideal`). Como `Fase Ideal` já está na lista de remoção (seção G), manter a `Fase` é seguro.
+>
+> **Encoding recomendado** — ordinal numérico (não One-Hot):
+>
+> | Fase | Encoding |
+> |------|----------|
+> | Alfa | 0 |
+> | Fase 1 | 1 |
+> | Fase 2 | 2 |
+> | Fase 3 | 3 |
+> | Fase 4 | 4 |
+> | Fase 5 | 5 |
+> | Fase 6 | 6 |
+> | Fase 7 | 7 |
+> | Fase 8 | 8 |
+>
+> **Por que ordinal e não One-Hot?**
+> - As fases têm **ordem natural** (progressão escolar): Alfa < Fase 1 < Fase 2 < ... < Fase 8
+> - One-Hot criaria **9 colunas** binárias, perdendo a relação ordinal e inflando a dimensionalidade
+> - Encoding ordinal preserva a informação de que `Fase 5 > Fase 3` em uma **única coluna**
+> - XGBoost e modelos de árvore aproveitam bem a ordenação natural para fazer splits eficientes
+
+
+
+
+### D) Classificações Pedra (ordinal: Quartzo → Topázio)
+
+| Coluna | Nulos | Ação |
+|--------|-------|------|
+| **Pedra 22** | 0% | ✅ **USAR** — encode ordinal |
+| **Pedra 21** | **46.28%** | ✅ **USAR** — XGBoost lida com NaN nativo |
+| **Pedra 20** | **62.44%** | ⚠️ **USAR COM CAUTELA** — muitos NaN, mas permite calcular evolução |
+
+### E) Rankings
+
+| Coluna | Nulos | Ação |
+|--------|-------|------|
+| **Cg** (global) | 0% | Manter. Apesar de observar alta correlação -0.959 com INDE 22 = redundância total
+
+| **Cf** (fase) | 0% | ✅ **MANTER** — ranking relativo à fase, não redundante |
+| **Ct** (turma) | 0% | ✅ **MANTER** |
+| **Nº Av** (nº avaliações) | 0% | ✅ **MANTER** |
+
+### F) Recomendações e Flags
+
+| Coluna | Nulos | Ação |
+|--------|-------|------|
+| **Rec Psicologia** | remover , ja tem dados do ips . Apesar de ter dados definidos em 2022  4 categorias ordináveis (`Não indicado`=0, `Sem limitações`=1, `Requer avaliação`=2, `Não atendido`=3). Decidi remover 
+| **Atingiu PV** | 0% | ✅ **USAR** — flag binária |
+| **Indicado** (bolsa) | 0% | ✅ **USAR** — flag binária |
+| **Rec Av1** | 0% | ✅ **USAR** — encode ordinal |
+| **Rec Av2** | ~0% | ✅ **USAR** — encode ordinal |
+| **Rec Av3** | **37.91%** | ⚠️ **AVALIAR** — muitos NaN |
+| **Rec Av4** | **64-66%** | ❌ **REMOVER** — NaN demais |
+| **Avaliador 1-4** | variável | ❌ **REMOVER** — nomes, não features preditivas |
+| **Destaque IEG/IDA/IPV** | 0% | ✅ **USAR** — converter para flag binária ("Destaque" vs "Melhorar") |
+
+### G) Identificadores e Derivadas do Target
+
+| Coluna | Ação |
+|--------|------|
+| **RA**, **Nome**, **Turma** | ❌ **REMOVER** — identificadores |
+| **Defas** | ❌ **REMOVER** — é a variável fonte do target |
+| **Fase ideal** | ❌ **REMOVER** — componente direto de Defas |
+
+---
+
+## 2. Features que Precisam de Normalização
+
+| Feature | Tipo | Problema | Normalização Recomendada |
+|---------|------|----------|--------------------------|
+| **IAA** | Contínua 0–10 | Skewness = **-2.91** (forte assimetria à esquerda) | `PowerTransformer(method='yeo-johnson')` + `StandardScaler` |
+| **IEG** | Contínua 0–10 | Skewness = **-1.10** | `StandardScaler` (suficiente) |
+| **IDA** | Contínua 0–10 | σ=2.05, distribuição razoável | `StandardScaler` |
+| **IPS** | Contínua 0–10 | Verificar skewness | `StandardScaler` |
+| **IPV** | Contínua 0–10 | Verificar skewness | `StandardScaler` |
+| **INDE 22** | Contínua ~3–9.5 | σ=1.02, bem concentrada | `StandardScaler` |
+| **Matem, Portug** | Contínua 0–10 | Distribuição normal approx. | `StandardScaler` |
+| **Idade 22** | Inteira 7–18+ | Escala diferente dos índices | `StandardScaler` |
+| **Cg, Cf, Ct** | Rankings inteiros | Escala 1–860 | `StandardScaler` ou `MinMaxScaler` |
+
+> **Nota importante**: Para **XGBoost**, normalização **não é estritamente necessária** — modelos baseados em árvore são invariantes à escala. A normalização seria relevante se usar modelos lineares, SVM, ou redes neurais como alternativa/ensemble.Porem irei implementar normalizacao, pois predento utilizar outros modelos 
+
+---
+
+## 3. Colunas com Muitos Dados Faltantes — Diagnóstico e Ação
+
+| Coluna | % Nulos | Causa Raiz | Recomendação |
+|--------|---------|-----------|--------------|
+| **Inglês** | **67.09%** | Só avaliada para alunos de fases mais avançadas | **Opção A**: Remover (mais seguro). **Opção B**: rem,moover |
+| **Rec Av4 / Avaliador4** | **64-66%** | Nem todos os alunos têm 4 avaliadores | **Remover** — informação escassa |
+| **Pedra 20** | **62.44%** | Alunos que ingressaram após 2020 | **Manter NaN** — XGBoost trata nativamente. Usar para calcular `Evolucao_pedra_20_22` |
+| **Pedra 21** | **46.28%** | Alunos que ingressaram após 2021 | **Manter NaN** — mesma estratégia acima |
+| **Rec Av3** | **37.91%** | Nem todos os alunos têm 3 avaliadores | **Avaliar**: se feature importance baixa, remover |
+
+---
+
+## 4. ⚠️ Problema Crítico: Data Leakage com IAN
+
+A feature **IAN** (Indicador de Adequação ao Nível) tem correlação **0.838** com `Defas` (target) e contribui com **58.4% da importância** do modelo. Isso ocorre porque:
+
+- IAN mede se o aluno está no nível adequado → é **praticamente sinônimo** da defasagem
+- IAN discreto (0, 5, 10) classifica: `0 = não adequado`, `5 = parcial`, `10 = adequado`
+- O modelo atual com IAN tem AUC 98.47% — **inflado por leakage**
+
+**Recomendação**: Treinar **dois modelos** (já previsto em `config.py` com `SELECTED_FEATURES_NO_IAN`) e comparar. O modelo **sem IAN** será mais honesto e generalizável.Coloca como padrao a flag no ian como true 
+
+---
+
+
+## 4.1 🎯 Definição do Target: Diagnóstico vs. Prevenção
+
+### O dilema: quando alertar a ONG?
+
+A definição do **threshold de defasagem** para o target binário é a decisão mais impactante do projeto, pois determina **quando** o sistema dispara um alerta de risco.
+
+### Cenário 1: Abordagem "Atraso Grave" (implementação atual)
+
+```
+Target = 1 se Defasagem <= -2
+```
+
+| Defasagem | Classificação | Significado |
+|-----------|--------------|-------------|
+| 0, +1, +2 | Sem Risco (0) | Aluno na trilha ou adiantado |
+| **-1** | **Sem Risco (0)** ❌ | Aluno repetiu 1 ano — **ignorado pelo modelo** |
+| -2, -3 | Em Risco (1) | Aluno com atraso grave — alerta tardio |
+
+**Problema**: Um aluno que estava indo bem (`Defas = 0`) e repetiu pela primeira vez (`Defas = -1`) é classificado como **"Sem Risco"**. O modelo só alerta quando o atraso já é **grave e difícil de reverter**.
+
+### Cenário 2: Abordagem Preventiva (recomendada) ✅
+
+```
+Target = 1 se Defasagem < 0 (ou seja, -1, -2, -3...)
+```
+
+| Defasagem | Classificação | Significado |
+|-----------|--------------|-------------|
+| 0, +1, +2 | Sem Risco (0) | Aluno na trilha ou adiantado |
+| **-1** | **Em Risco (1)** ✅ | Aluno saiu da trilha — **alerta precoce** |
+| -2, -3 | Em Risco (1) | Aluno com atraso grave — também capturado |
+
+**Ganho**: Permite intervenção **rápida**. É muito mais fácil recuperar um aluno com 1 ano de atraso do que um com 2 ou 3.
+
+### Comparação de impacto
+
+| Aspecto | Threshold ≤ -2 (atual) | Threshold < 0 (preventivo) |
+|---------|------------------------|---------------------------|
+| **Filosofia** | Diagnóstico tardio | Prevenção precoce |
+| **Alunos com Defas = -1** | Ignorados ❌ | Capturados ✅ |
+| **% de positivos (estimado)** | ~15-20% | ~30-40% |
+| **Balanceamento de classes** | Mais desbalanceado | Mais equilibrado |
+| **Recall esperado** | Alto para graves, zero para leves | Alto para todos |
+| **Falsos positivos** | Poucos | Mais (aceitável: melhor alertar do que ignorar) |
+| **Utilidade para a ONG** | Reativo: "o aluno já está atrasado" | Proativo: "o aluno está começando a atrasar" |
+| **Custo do erro (FN)** | Alto: aluno com -1 não recebe ajuda | Baixo: aluno com -1 recebe ajuda preventiva |
+
+### Decisão: **Adotar threshold preventivo (`Defas < 0`)**
+
+**Justificativa**:
+
+1. **Alinhamento com a missão da ONG**: A Passos Mágicos busca **transformar** vidas — intervir cedo é mais eficaz
+2. **Custo assimétrico**: O custo de **não alertar** (falso negativo) é muito maior que o custo de **alertar desnecessariamente** (falso positivo). Um aluno que recebe suporte extra sem precisar não é prejudicado; um aluno que precisava e não recebeu pode abandonar os estudos
+3. **Melhor balanceamento**: ~30-40% de positivos vs ~15-20% reduz a necessidade de técnicas agressivas de oversampling
+4. **Captura tendência**: Um aluno com `Defas = -1` está em **trajetória descendente** — o modelo preventivo captura isso antes que se agrave
+
+
+## 5. Features Derivadas Recomendadas (além das existentes)
+
+| Feature | Fórmula | Justificativa |
+|---------|---------|---------------|
+| `Anos_na_PM` | `2022 - Ano ingresso` | ✅ **Já implementada** em `feature_engineering.py` |
+| `Evolucao_pedra_20_22` | `Pedra_22_enc - Pedra_20_enc` | ✅ **Já implementada** |
+| `Evolucao_pedra_21_22` | `Pedra_22_enc - Pedra_21_enc` | ✅ **Já implementada** |
+
+| `Variancia_indicadores` | `std(IAA, IEG, IPS, IDA, IPV)` | 🆕 **Nova** — alunos com desempenho irregular |
+| `Ratio_IDA_IEG` | `IDA / (IEG + 0.01)` | 🆕 **Nova** — desempenho vs esforço |
+
+| `Delta_INDE` (cross-year) | `INDE_22 - INDE_21` | 🆕 **Nova** — tendência do aluno (requer join entre abas) |
+| **`mismatch_idade_fase`** | `1 se Idade > idade_max_esperada(Fase)` | ✅ **Nova** — flag binária que identifica alunos com idade acima do esperado para sua fase. Indicador direto de atraso escolar |
+| **`delta_idade_fase`** | `Idade - idade_max_esperada(Fase)` | ✅ **Nova** — versão contínua do mismatch, captura a **severidade** do atraso (ex: +1 ano vs +3 anos). Valores positivos = atraso, zero/negativos = ok |
+
+---
+
+## 6. Resumo das Decisões-Chave
+
+### 📋 Steps de implementação sugeridos
+
+1. **Remover** `IAN`, `Defas`, `Fase ideal`, `RA`, `Nome`, `Turma`, `Avaliador1-4`, `Rec Av3`, `Rec Av4`
+2. **Tratar Inglês**: remover coluna OU criar flag `tem_nota_ingles` + manter NaN
+3. **Imputar** `Matem` e `Portug` com mediana (apenas 2 nulos cada)
+4. **Pedras históricas**: Encode ordinal (Quartzo=1, Ágata=2, Ametista=3, Topázio=4). Aplicar estratégia **"Delta Neutro com Flag"**: criar flags `tinha_pedra_20` e `tinha_pedra_21`, forçar delta a `0` para alunos sem histórico (evitar inflação artificial), imputar Pedra bruta com `0`
+5. **Normalizar** IAA com `PowerTransformer` (skew -2.91); demais numéricas com `StandardScaler` — necessário apenas se usar modelos lineares/ensemble com regressão logística
+6. **Encode ordinal**: Pedra (Quartzo=1→Topázio=4), Fase (Alfa=0→Fase 8=8), Rec Av1/Av2 (já implementado em `preprocessing.py`)
+7. **Encode binário**: Gênero, Atingiu PV, Indicado, Destaques (já implementado)
+8. **Criar features derivadas** novas: 
+9.  **Treinar modelo sem IAN** como modelo principal e comparar performance
+
+### ✅ Verificação
+
+- Comparar AUC-ROC e F1 do modelo **com vs sem IAN**
+- Verificar feature importance das novas features derivadas
+- Validar que nenhuma feature restante tem correlação > 0.80 com o target (além do INDE)
+- Rodar `python train_pipeline.py` para retreinar e verificar métricas
+
+### 🧭 Decisões Técnicas
+
+- **XGBoost não requer normalização**, mas se for testar ensemble com modelos lineares, aplicar `StandardScaler` + `PowerTransformer` para IAA
+- **IAN deve ser excluído** do modelo principal por data leakage
+- **Inglês**: remover é mais conservador; manter com flag é mais informativo mas arriscado com 67% NaN
+- **Rankings** `Cf` e `Ct` mantidos por trazerem informação relativa (posição dentro do grupo), diferente de `Cg` que é diretamente derivado de INDE
+> **⚠️ Alerta para Produção (API) — Rankings de alunos novos:**
+>
+> Nos dados de treino (PEDE2022–2024), **Cf e Ct têm 0% de nulos** porque todos os alunos já foram avaliados e ranqueados. Porém, em **produção (API 2025+)**, alunos **entrantes/novos** ainda não terão ranking atribuído.
+>
+> | Cenário | Cf / Ct | Problema |
+> |---------|---------|----------|
+> | **Treino** (2022–2024) | Sempre preenchido | Nenhum — dados completos |
+> | **Produção** (2025+) | **NaN para alunos novos** | Modelo recebe input que nunca viu no treino → **pode quebrar ou gerar predição errada** |
+>
+> **Estratégia recomendada: "Fallback com Flag"**
+>
+> 1. **Criar flags** `tem_ranking_cf` e `tem_ranking_ct` (1 = tem, 0 = aluno novo)
+> 2. **Imputar NaN** com valor neutro: **mediana da fase/turma** ou valor **-1** (fora da escala natural)
+> 3. **Injetar NaN artificial no treino**: durante o treinamento, forçar ~10-15% dos rankings a NaN aleatoriamente para que o modelo aprenda a lidar com a ausência
+>

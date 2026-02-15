@@ -63,31 +63,35 @@ class TestDriftMonitoring:
         psi = calculate_psi(ref, prod)
         assert psi > 0.1
 
-    def test_check_drift_no_reference(self, tmp_path):
-        with patch("app.monitoring.drift.REFERENCE_DIST_PATH", tmp_path / "nonexistent.joblib"):
-            result = check_drift("IAA", np.array([5.0, 6.0, 7.0, 8.0, 9.0]))
-            assert "error" in result
+
 
     def test_check_drift_few_values(self, tmp_path):
         ref_path = tmp_path / "ref.joblib"
-        joblib.dump({"IAA": {"mean": 5.0, "std": 1.0, "min": 2.0, "max": 8.0, "median": 5.0, "q25": 4.0, "q75": 6.0}}, ref_path)
+        # Criar DataFrame de referência
+        df_ref = pd.DataFrame({"IAA": [4.0, 5.0, 6.0, 5.0, 5.0]})
+        joblib.dump(df_ref, ref_path)
+        
         with patch("app.monitoring.drift.REFERENCE_DIST_PATH", ref_path):
-            result = check_drift("IAA", np.array([5.0]))
+            result = check_drift("IAA", np.array([5.0]), df_ref)
             assert "warning" in result
 
     def test_check_drift_valid(self, tmp_path):
         ref_path = tmp_path / "ref.joblib"
-        joblib.dump({"IAA": {"mean": 5.0, "std": 1.0, "min": 2.0, "max": 8.0, "median": 5.0, "q25": 4.0, "q75": 6.0}}, ref_path)
+        df_ref = pd.DataFrame({"IAA": np.random.normal(5, 1, 100).tolist()})
+        joblib.dump(df_ref, ref_path)
+        
         with patch("app.monitoring.drift.REFERENCE_DIST_PATH", ref_path):
-            result = check_drift("IAA", np.random.normal(5, 1, 50))
+            result = check_drift("IAA", np.random.normal(5, 1, 50), df_ref)
             assert "drift_status" in result
             assert result["drift_status"] in ["OK", "WARNING", "DRIFT_DETECTED"]
 
     def test_check_drift_wrong_feature(self, tmp_path):
         ref_path = tmp_path / "ref.joblib"
-        joblib.dump({"IAA": {"mean": 5.0, "std": 1.0}}, ref_path)
+        df_ref = pd.DataFrame({"IAA": [1, 2, 3]})
+        joblib.dump(df_ref, ref_path)
+        
         with patch("app.monitoring.drift.REFERENCE_DIST_PATH", ref_path):
-            result = check_drift("NONEXISTENT", np.array([5.0, 6.0, 7.0, 8.0, 9.0]))
+            result = check_drift("NONEXISTENT", np.array([5.0, 6.0]), df_ref)
             assert "error" in result
 
     def test_check_all_drift_no_data(self):
@@ -136,6 +140,11 @@ class TestSaveModelArtifacts:
         metadata = joblib.load(meta_path)
         assert "feature_names" in metadata
         assert "metrics" in metadata
+        
+        # Verificar se referência é DataFrame
+        ref_sample = joblib.load(ref_path)
+        assert isinstance(ref_sample, pd.DataFrame)
+        assert len(ref_sample) <= 1000
 
 
 class TestLoadDataset:

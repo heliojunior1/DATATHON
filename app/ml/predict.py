@@ -117,7 +117,7 @@ def prepare_input_features(input_data: dict, feature_names: list[str]) -> pd.Dat
 
     # Escola
     if "Escola_encoded" in feature_names:
-        escola = input_data.get("Escola_encoded", input_data.get("Instituicao_ensino"))
+        escola = input_data.get("Escola_encoded", input_data.get("Instituição de ensino", input_data.get("Instituicao_ensino")))
         if isinstance(escola, str):
             features["Escola_encoded"] = ESCOLA_MAP.get(escola, 0)
         else:
@@ -125,7 +125,7 @@ def prepare_input_features(input_data: dict, feature_names: list[str]) -> pd.Dat
 
     # Anos na PM
     if "Anos_na_PM" in feature_names:
-        anos = input_data.get("Anos_na_PM", input_data.get("Ano_ingresso"))
+        anos = input_data.get("Anos_na_PM", input_data.get("Ano ingresso", input_data.get("Ano_ingresso")))
         if anos is not None and isinstance(anos, (int, float)) and anos > 100:
             # Se recebeu Ano_ingresso, calcular
             features["Anos_na_PM"] = 2022 - int(anos)
@@ -136,13 +136,14 @@ def prepare_input_features(input_data: dict, feature_names: list[str]) -> pd.Dat
     for year in ["20", "21", "22"]:
         col = f"Pedra_{year}_encoded"
         if col in feature_names:
-            pedra = input_data.get(col, input_data.get(f"Pedra_{year}"))
-            if isinstance(pedra, str):
-                features[col] = PEDRA_ORDINAL_MAP.get(pedra)
+            # Tentar "Pedra 20" (com espaço) e "Pedra_20" (com underscore)
+            val = input_data.get(col, input_data.get(f"Pedra {year}", input_data.get(f"Pedra_{year}")))
+            if isinstance(val, str):
+                features[col] = PEDRA_ORDINAL_MAP.get(val)
             else:
-                features[col] = pedra
+                features[col] = val
 
-    # Evolução das Pedras
+    # Evolução das Pedras - Recalcular sempre se possível, pois input pode não ter
     if "Evolucao_pedra_20_22" in feature_names:
         p20 = features.get("Pedra_20_encoded")
         p22 = features.get("Pedra_22_encoded")
@@ -161,7 +162,7 @@ def prepare_input_features(input_data: dict, feature_names: list[str]) -> pd.Dat
 
     # Rec Psicologia
     if "Rec_psico_encoded" in feature_names:
-        rec = input_data.get("Rec_psico_encoded", input_data.get("Rec_Psicologia"))
+        rec = input_data.get("Rec_psico_encoded", input_data.get("Rec Psicologia", input_data.get("Rec_Psicologia")))
         if isinstance(rec, str):
             features["Rec_psico_encoded"] = REC_PSICO_MAP.get(rec, 0)
         else:

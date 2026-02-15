@@ -102,10 +102,42 @@ python train_pipeline.py --no-ian
 ### 3. Iniciar a API
 
 ```bash
-uvicorn app.main:app --host 0.0.0.0 --port 8000
-```
+Eu ```
 
 A documentação interativa estará em: http://localhost:8000/docs
+
+
+### 4. Analise dos dados
+TIER 1 — Usar com confiança (< 30% nulos, alta relevância)
+Feature	Tipo	Escala	Nulos	Normalização	Observação
+INDE	Numérico	0–10	~20%	StandardScaler	Índice composto principal
+IAA	Numérico	0–10	~20%	StandardScaler	Auto-avaliação do aluno
+IEG	Numérico	0–10	~20%	StandardScaler	Engajamento (lições de casa)
+IPS	Numérico	0–10	~20%	StandardScaler	Psicossocial
+IDA	Numérico	0–10	~20%	StandardScaler	Desempenho acadêmico
+IPP	Numérico	0–10	~20%	StandardScaler	Psicopedagógico
+IPV	Numérico	0–10	~20%	StandardScaler	Avaliação de "ponto de virada"
+PEDRA	Ordinal	4 classes	~20%	OrdinalEncoder (1-4)	Hierarquia natural
+Idade	Numérico	~8–20	~25%	StandardScaler	Demográfica
+Ano ingresso	Numérico	2016–2022	~25%	Derivar Anos_na_PM	Tempo no programa
+Gênero	Binário	2 classes	~25%	LabelEncoder (0/1)	Demográfica
+TIER 2 — Usar com cautela (30–60% nulos ou risco de leakage)
+Feature	Tipo	Nulos	Problema	Recomendação
+IAN	Numérico (discreto: 0, 5, 10)	~25%	DATA LEAKAGE — é praticamente sinônimo de defasagem. Domina com 58.4% de importância	REMOVER do modelo principal. IAN mede "adequação ao nível", que é o próprio target
+DEFASAGEM	Numérico	~30%	É o target, não feature	Usar só para criar y
+Ponto de Virada	Binário	~25%	Pode ser consequência, não causa	Usar com monitoramento
+Rec Psicologia	Ordinal (5 níveis)	~40%	Muitos nulos	Imputar como "Não avaliado" (0)
+Rec Avaliador 1/2	Ordinal (5 níveis)	~40%	Possível leakage — avaliadores podem ver defasagem	Testar modelo com e sem
+TIER 3 — Evitar (> 60% nulos ou irrelevantes)
+Feature	Nulos	Por que evitar
+NOTA_PORT / NOTA_MAT / NOTA_ING	~70-80%	Quase inútil — tão poucos dados que a imputação por mediana distorce a realidade
+Cg, Cf, Ct	~25%	Significado não documentado no dicionário. Rankings internos? Possível leakage
+DESTAQUE_IEG/IDA/IPV	Texto livre	Não processável sem NLP
+REC_EQUIPE_*	~50%	Muitas categorias, muitos nulos
+TURMA	~30%	Identificador, sem valor preditivo
+NOME	0%	Identificador pessoal
+INDE_CONCEITO	~20%	Redundante — é apenas a faixa do INDE
+Nº Av	~25%	Se reflete número de avaliações do mesmo período, pode ser leaker
 
 ### 4. Deploy com Docker
 

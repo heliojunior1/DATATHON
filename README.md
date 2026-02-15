@@ -16,20 +16,34 @@ Pipeline completa de Machine Learning usando **XGBoost** como classificador bin�
 
 ### Resultados do Modelo
 
+#### Métricas (Conjunto de Teste)
+
 | Métrica | Valor |
 |---------|-------|
 | **Accuracy** | 95.93% |
-| **Precision** | 96.97% |
-| **Recall** | 84.21% |
-| **F1-Score** | 90.14% |
-| **AUC-ROC** | 98.47% |
+| **Precision** | 99.13% |
+| **Recall** | 95.00% |
+| **F1-Score** | 97.02% |
+| **AUC-ROC** | 99.66% |
+
+#### Cross-Validation Independente (5-Fold)
+
+| Métrica | Média ± Std |
+|---------|-------------|
+| **Accuracy** | 96.40% ± 0.85% |
+| **Precision** | 97.70% ± 1.58% |
+| **Recall** | 97.17% ± 1.35% |
+| **F1-Score** | 97.42% ± 0.60% |
+| **AUC-ROC** | 99.26% ± 0.61% |
+
+> O desvio padrão baixo (< 1.6%) em todas as métricas confirma que o modelo **generaliza bem** e não apresenta overfitting.
 
 ### Stack Tecnológica
 - **Linguagem**: Python 3.11
-- **ML**: scikit-learn, XGBoost, pandas, numpy
+- **ML**: scikit-learn, XGBoost, pandas, numpy, matplotlib
 - **API**: FastAPI + Uvicorn
 - **Serialização**: joblib
-- **Testes**: pytest (91 testes, 84% cobertura)
+- **Testes**: pytest (105 testes)
 - **Empacotamento**: Docker
 - **Monitoramento**: drift detection (PSI, KS-test)
 
@@ -49,7 +63,7 @@ datathon/
 │   │   ├── preprocessing.py   # Pré-processamento de dados
 │   │   ├── feature_engineering.py  # Engenharia de features
 │   │   ├── train.py           # Pipeline de treinamento
-│   │   ├── evaluate.py        # Métricas de avaliação
+│   │   ├── evaluate.py        # Métricas, CV e Learning Curves
 │   │   └── predict.py         # Lógica de predição
 │   ├── monitoring/
 │   │   └── drift.py           # Detecção de data drift
@@ -57,8 +71,8 @@ datathon/
 │   │   └── helpers.py         # Utilitários (logging)
 │   └── main.py                # Entrada da aplicação FastAPI
 ├── data/                       # Dataset PEDE 2024
-├── models/                     # Modelos serializados (.joblib)
-├── tests/                      # Testes unitários (91 testes)
+├── models/                     # Modelos serializados + learning_curves.png
+├── tests/                      # Testes unitários (105 testes)
 ├── train_pipeline.py           # Script CLI de treinamento
 ├── Dockerfile
 ├── docker-compose.yml
@@ -95,14 +109,18 @@ python train_pipeline.py --no-optimize
 # Treinamento completo (com RandomizedSearchCV)
 python train_pipeline.py
 
-# Sem a feature IAN (evitar data leakage)
+# Sem a feature IAN (evitar data leakage — já é o padrão)
 python train_pipeline.py --no-ian
+
+# Pular CV e/ou learning curves para treino mais rápido
+python train_pipeline.py --no-optimize --skip-cv --skip-learning-curves
 ```
 
 ### 3. Iniciar a API
 
 ```bash
-Eu ```
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+```
 
 A documentação interativa estará em: http://localhost:8000/docs
 
@@ -139,7 +157,7 @@ NOME	0%	Identificador pessoal
 INDE_CONCEITO	~20%	Redundante — é apenas a faixa do INDE
 Nº Av	~25%	Se reflete número de avaliações do mesmo período, pode ser leaker
 
-### 4. Deploy com Docker
+### 5. Deploy com Docker
 
 ```bash
 # Build
@@ -211,8 +229,8 @@ curl -X POST http://localhost:8000/predict \
   "risk_level": "Muito Baixo",
   "label": "Sem Risco",
   "top_factors": [
-    {"feature": "IAN", "importance": 0.5844},
-    {"feature": "Nº Av", "importance": 0.0628}
+    {"feature": "Nº Av", "importance": 0.1113},
+    {"feature": "Idade 22", "importance": 0.0754}
   ]
 }
 ```
@@ -229,6 +247,12 @@ curl -X POST http://localhost:8000/predict/batch \
 
 ```bash
 curl http://localhost:8000/model-info
+```
+
+### Learning Curves (PNG)
+
+```bash
+curl http://localhost:8000/learning-curve --output learning_curves.png
 ```
 
 ### Monitoramento de Drift
@@ -249,17 +273,33 @@ curl http://localhost:8000/monitoring/stats
 - Tratamento de nulos (mediana para Math/Port, NaN nativo para XGBoost)
 
 ### 2. Engenharia de Features
-- **31 features** selecionadas
+- **35 features** selecionadas (sem IAN — removido por data leakage)
 - Evolução temporal das Pedras (2020→2022, 2021→2022)
 - Anos na Passos Mágicos
 - Flags de destaque (IEG, IDA, IPV)
+- Features derivadas: `Variancia_indicadores`, `Ratio_IDA_IEG`
 
-### 3. Treinamento
-- **XGBoost** com `scale_pos_weight` para balanceamento (22% em risco)
-- Validação cruzada estratificada (5-fold)
-- `RandomizedSearchCV` com 50 iterações
+### 3. Treinamento com Regularização
 
-### 4. Avaliação
+O XGBoost é treinado com **regularização** para evitar overfitting (sem regularização, o treino atingia 100%):
+
+| Parâmetro | Valor | Efeito |
+|-----------|-------|--------|
+| `max_depth` | 4 | Limita profundidade das árvores (padrão: 6) |
+| `min_child_weight` | 5 | Mínimo de amostras por folha |
+| `subsample` | 0.8 | Amostragem de 80% dos dados por árvore |
+| `colsample_bytree` | 0.8 | Amostragem de 80% das features por árvore |
+| `reg_alpha` | 0.1 | Regularização L1 (sparsity) |
+| `reg_lambda` | 1.0 | Regularização L2 (weight decay) |
+| `learning_rate` | 0.1 | Taxa de aprendizado conservadora |
+| `n_estimators` | 200 | Mais árvores compensam o learning_rate menor |
+
+Essa configuração reduziu o score de treino de **1.000 para ~0.99** e manteve o score de validação estável, eliminando o overfitting.
+
+### 4. Validação
+
+- **Cross-Validation Independente (5-Fold)**: avalia generalização do modelo no dataset completo, reportando média ± desvio padrão por métrica
+- **Learning Curves**: gráfico de treino vs validação em função do tamanho do dataset para diagnóstico visual de overfitting/underfitting
 - Métrica primária: **F1-Score** (equilíbrio entre precisão e recall)
 - Priorização do **Recall** (evitar falsos negativos — não perder alunos em risco)
 
@@ -267,11 +307,13 @@ curl http://localhost:8000/monitoring/stats
 
 | # | Feature | Importância |
 |---|---------|------------|
-| 1 | IAN (Adequação ao Nível) | 58.44% |
-| 2 | Nº Avaliações | 6.28% |
-| 3 | Idade | 4.34% |
-| 4 | Pedra 2020 | 3.53% |
-| 5 | Rec. Avaliador 2 | 2.64% |
+| 1 | Nº Avaliações | 11.13% |
+| 2 | Idade 22 | 7.54% |
+| 3 | Fase (encoded) | 7.51% |
+| 4 | Indicado (flag) | 7.07% |
+| 5 | Cf | 6.73% |
+
+> A importância está bem distribuída entre as features (max. 11%), indicando que o modelo não depende de uma única variável.
 
 ---
 
@@ -288,7 +330,7 @@ pytest tests/ --cov=app --cov-report=term-missing
 pytest tests/ --cov=app --cov-fail-under=80
 ```
 
-**Resultado atual**: 91 testes, 84% de cobertura.
+**Resultado atual**: 105 testes passando.
 
 ---
 
@@ -309,3 +351,4 @@ Endpoints:
 ## 📄 Licença
 
 Projeto desenvolvido para o Datathon PÓS TECH — Machine Learning Engineering.
+

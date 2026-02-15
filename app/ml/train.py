@@ -78,6 +78,16 @@ def train_model(
     logger.info(f"Scale pos weight: {scale_pos_weight:.2f} (neg={n_negative}, pos={n_positive})")
 
     base_model = XGBClassifier(
+        # Regularização para evitar overfitting (train score = 1.0 sem regularização)
+        max_depth=4,              # Limitar profundidade (padrão: 6)
+        min_child_weight=5,       # Mínimo de amostras por folha
+        subsample=0.8,            # Usar 80% das amostras por árvore
+        colsample_bytree=0.8,     # Usar 80% das features por árvore
+        reg_alpha=0.1,            # Regularização L1
+        reg_lambda=1.0,           # Regularização L2
+        learning_rate=0.1,        # Taxa de aprendizado
+        n_estimators=200,         # Mais árvores com learning_rate menor
+        # Balanceamento e geral
         scale_pos_weight=scale_pos_weight,
         random_state=RANDOM_STATE,
         eval_metric="logloss",

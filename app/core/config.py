@@ -142,3 +142,52 @@ API_PORT = int(os.getenv("API_PORT", "8000"))
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 LOG_DIR = BASE_DIR / "logs"
 LOG_DIR.mkdir(exist_ok=True)
+
+# Features disponíveis para seleção pelo usuário (com metadata para UI)
+AVAILABLE_FEATURES = {
+    # Indicadores PEDE
+    "IAA": {"category": "Indicadores PEDE", "description": "Auto Avaliação (0-10)", "default": True},
+    "IEG": {"category": "Indicadores PEDE", "description": "Engajamento (0-10)", "default": True},
+    "IPS": {"category": "Indicadores PEDE", "description": "Psicossocial (0-10)", "default": True},
+    "IDA": {"category": "Indicadores PEDE", "description": "Aprendizagem (0-10)", "default": True},
+    "IPV": {"category": "Indicadores PEDE", "description": "Ponto de Virada (0-10)", "default": True},
+    "IAN": {"category": "Indicadores PEDE", "description": "Adequação ao Nível (⚠️ data leakage)", "default": False},
+    "INDE 22": {"category": "Indicadores PEDE", "description": "Índice de Desenvolvimento Educacional", "default": True},
+    # Notas
+    "Matem": {"category": "Notas", "description": "Nota de Matemática", "default": True},
+    "Portug": {"category": "Notas", "description": "Nota de Português", "default": True},
+    "Tem_nota_ingles": {"category": "Notas", "description": "Flag: tem nota de Inglês", "default": True},
+    # Demográficas
+    "Idade 22": {"category": "Demográficas", "description": "Idade do aluno em 2022", "default": True},
+    "Genero_encoded": {"category": "Demográficas", "description": "Gênero (codificado)", "default": True},
+    "Escola_encoded": {"category": "Demográficas", "description": "Instituição de Ensino (codificada)", "default": True},
+    "Anos_na_PM": {"category": "Demográficas", "description": "Anos na Passos Mágicos", "default": True},
+    "Fase_encoded": {"category": "Demográficas", "description": "Fase escolar (ordinal)", "default": True},
+    # Evolução Pedras
+    "Pedra_20_encoded": {"category": "Evolução Pedras", "description": "Classificação Pedra 2020", "default": True},
+    "Pedra_21_encoded": {"category": "Evolução Pedras", "description": "Classificação Pedra 2021", "default": True},
+    "Pedra_22_encoded": {"category": "Evolução Pedras", "description": "Classificação Pedra 2022", "default": True},
+    "Evolucao_pedra_20_22": {"category": "Evolução Pedras", "description": "Evolução 2020→2022", "default": True},
+    "Evolucao_pedra_21_22": {"category": "Evolução Pedras", "description": "Evolução 2021→2022", "default": True},
+    "tinha_pedra_20": {"category": "Evolução Pedras", "description": "Flag: tinha pedra 2020", "default": True},
+    "tinha_pedra_21": {"category": "Evolução Pedras", "description": "Flag: tinha pedra 2021", "default": True},
+    # Flags
+    "Ponto_virada_flag": {"category": "Flags", "description": "Atingiu Ponto de Virada", "default": True},
+    "Indicado_flag": {"category": "Flags", "description": "Indicado para Bolsa", "default": True},
+    "Destaque_IEG_flag": {"category": "Flags", "description": "Destaque em IEG", "default": True},
+    "Destaque_IDA_flag": {"category": "Flags", "description": "Destaque em IDA", "default": True},
+    "Destaque_IPV_flag": {"category": "Flags", "description": "Destaque em IPV", "default": True},
+    # Avaliadores
+    "Rec_av1_encoded": {"category": "Avaliadores", "description": "Recomendação Avaliador 1", "default": True},
+    "Rec_av2_encoded": {"category": "Avaliadores", "description": "Recomendação Avaliador 2", "default": True},
+    # Rankings
+    "Cf": {"category": "Rankings", "description": "Classificação na Fase", "default": True},
+    "Ct": {"category": "Rankings", "description": "Classificação na Turma", "default": True},
+    "Nº Av": {"category": "Rankings", "description": "Número de Avaliações", "default": True},
+    "tem_ranking_cf": {"category": "Rankings", "description": "Flag: tem ranking Cf", "default": True},
+    "tem_ranking_ct": {"category": "Rankings", "description": "Flag: tem ranking Ct", "default": True},
+    # Features derivadas
+    "Variancia_indicadores": {"category": "Derivadas", "description": "Desvio padrão dos indicadores", "default": True},
+    "Ratio_IDA_IEG": {"category": "Derivadas", "description": "Razão desempenho/esforço", "default": True},
+}
+

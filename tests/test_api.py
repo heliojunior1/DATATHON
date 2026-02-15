@@ -2,18 +2,18 @@
 Testes da API FastAPI.
 """
 import pytest
-import joblib
+import json
 import numpy as np
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 from fastapi.testclient import TestClient
 from sklearn.model_selection import train_test_split
-from xgboost import XGBClassifier
 
 from app.main import app
 from app.ml.train import train_model
 from app.ml.feature_engineering import select_features
 from app.ml.predict import clear_model_cache
+from app.ml.model_storage import save_trained_model, clear_cache as clear_storage_cache
 from app.core.config import RANDOM_STATE, TEST_SIZE
 
 
@@ -25,37 +25,30 @@ def client():
 
 @pytest.fixture
 def trained_model(engineered_data, tmp_path):
-    """Treina e salva modelo para testes de API."""
+    """Treina e salva modelo para testes de API (usando model_storage)."""
     X, y = select_features(engineered_data)
     X_train, _, y_train, _ = train_test_split(
         X, y, test_size=TEST_SIZE, random_state=RANDOM_STATE, stratify=y
     )
-    model = train_model(X_train, y_train, optimize=False)
+    model = train_model(X_train, y_train, model_type="xgboost", optimize=False)
     feature_names = list(X_train.columns)
 
-    model_path = tmp_path / "test_model.joblib"
-    meta_path = tmp_path / "test_metadata.joblib"
-    ref_path = tmp_path / "test_reference.joblib"
+    # Usar model_storage com diretório temporário
+    models_dir = tmp_path / "models"
+    models_dir.mkdir()
 
-    joblib.dump(model, model_path)
-    joblib.dump({
-        "model_name": "test",
-        "model_version": "0.1",
-        "feature_names": feature_names,
-        "feature_importance": [{"feature": f, "importance": 0.1} for f in feature_names],
-        "metrics": {"f1_score": 0.8, "accuracy": 0.85, "precision": 0.75, "recall": 0.9, "auc_roc": 0.88},
-        "n_training_samples": len(X_train),
-        "confusion_matrix": {"true_negatives": 30, "false_positives": 3, "false_negatives": 2, "true_positives": 15},
-    }, meta_path)
+    with patch("app.ml.model_storage.MODELS_DIR", models_dir), \
+         patch("app.ml.model_storage.INDEX_PATH", models_dir / "index.json"):
+        clear_storage_cache()
 
-    reference_stats = {}
-    for col in X_train.columns:
-        col_data = X_train[col].dropna()
-        if len(col_data) > 0:
-            reference_stats[col] = {"mean": float(col_data.mean()), "std": float(col_data.std()), "min": float(col_data.min()), "max": float(col_data.max()), "median": float(col_data.median()), "q25": float(col_data.quantile(0.25)), "q75": float(col_data.quantile(0.75))}
-    joblib.dump(reference_stats, ref_path)
-
-    return model_path, meta_path, ref_path
+        metadata = {
+            "metrics": {"f1_score": 0.8, "accuracy": 0.85, "precision": 0.75, "recall": 0.9, "auc_roc": 0.88},
+            "feature_importance": [{"feature": f, "importance": 0.1} for f in feature_names],
+            "n_training_samples": len(X_train),
+            "confusion_matrix": {"true_negatives": 30, "false_positives": 3, "false_negatives": 2, "true_positives": 15},
+        }
+        model_id = save_trained_model(model, metadata, "xgboost", feature_names, X_train)
+        yield models_dir, model_id
 
 
 class TestHealthEndpoint:
@@ -72,10 +65,11 @@ class TestHealthEndpoint:
 
     def test_health_with_model(self, client, trained_model):
         """Health check com modelo carregado."""
-        model_path, meta_path, _ = trained_model
+        models_dir, model_id = trained_model
         clear_model_cache()
-        with patch("app.ml.predict.MODEL_PATH", model_path), \
-             patch("app.ml.predict.TRAIN_METADATA_PATH", meta_path):
+        with patch("app.ml.model_storage.MODELS_DIR", models_dir), \
+             patch("app.ml.model_storage.INDEX_PATH", models_dir / "index.json"):
+            clear_storage_cache()
             response = client.get("/health")
             assert response.status_code == 200
             data = response.json()
@@ -88,10 +82,11 @@ class TestPredictEndpoint:
 
     def test_predict_success(self, client, trained_model, sample_student_input):
         """Predição com dados válidos."""
-        model_path, meta_path, _ = trained_model
+        models_dir, model_id = trained_model
         clear_model_cache()
-        with patch("app.ml.predict.MODEL_PATH", model_path), \
-             patch("app.ml.predict.TRAIN_METADATA_PATH", meta_path):
+        with patch("app.ml.model_storage.MODELS_DIR", models_dir), \
+             patch("app.ml.model_storage.INDEX_PATH", models_dir / "index.json"):
+            clear_storage_cache()
             response = client.post("/predict", json=sample_student_input)
             assert response.status_code == 200
             data = response.json()
@@ -99,6 +94,18 @@ class TestPredictEndpoint:
             assert "probability" in data
             assert "risk_level" in data
             assert data["prediction"] in [0, 1]
+
+    def test_predict_with_model_id(self, client, trained_model, sample_student_input):
+        """Predição especificando model_id."""
+        models_dir, model_id = trained_model
+        clear_model_cache()
+        with patch("app.ml.model_storage.MODELS_DIR", models_dir), \
+             patch("app.ml.model_storage.INDEX_PATH", models_dir / "index.json"):
+            clear_storage_cache()
+            response = client.post(f"/predict?model_id={model_id}", json=sample_student_input)
+            assert response.status_code == 200
+            data = response.json()
+            assert data["model_id"] == model_id
 
     def test_predict_no_model(self, client, sample_student_input):
         """Predição sem modelo carregado."""
@@ -109,10 +116,11 @@ class TestPredictEndpoint:
 
     def test_predict_invalid_input(self, client, trained_model):
         """Predição com dados inválidos."""
-        model_path, meta_path, _ = trained_model
+        models_dir, _ = trained_model
         clear_model_cache()
-        with patch("app.ml.predict.MODEL_PATH", model_path), \
-             patch("app.ml.predict.TRAIN_METADATA_PATH", meta_path):
+        with patch("app.ml.model_storage.MODELS_DIR", models_dir), \
+             patch("app.ml.model_storage.INDEX_PATH", models_dir / "index.json"):
+            clear_storage_cache()
             response = client.post("/predict", json={"invalid": "data"})
             assert response.status_code == 422  # Validation error
 
@@ -122,10 +130,11 @@ class TestBatchPredictEndpoint:
 
     def test_batch_predict_success(self, client, trained_model, sample_student_input):
         """Predição em lote com dados válidos."""
-        model_path, meta_path, _ = trained_model
+        models_dir, _ = trained_model
         clear_model_cache()
-        with patch("app.ml.predict.MODEL_PATH", model_path), \
-             patch("app.ml.predict.TRAIN_METADATA_PATH", meta_path):
+        with patch("app.ml.model_storage.MODELS_DIR", models_dir), \
+             patch("app.ml.model_storage.INDEX_PATH", models_dir / "index.json"):
+            clear_storage_cache()
             response = client.post("/predict/batch", json={"students": [sample_student_input, sample_student_input]})
             assert response.status_code == 200
             data = response.json()
@@ -138,14 +147,15 @@ class TestModelInfoEndpoint:
 
     def test_model_info_success(self, client, trained_model):
         """Informações do modelo."""
-        model_path, meta_path, _ = trained_model
+        models_dir, model_id = trained_model
         clear_model_cache()
-        with patch("app.ml.predict.MODEL_PATH", model_path), \
-             patch("app.ml.predict.TRAIN_METADATA_PATH", meta_path):
+        with patch("app.ml.model_storage.MODELS_DIR", models_dir), \
+             patch("app.ml.model_storage.INDEX_PATH", models_dir / "index.json"):
+            clear_storage_cache()
             response = client.get("/model-info")
             assert response.status_code == 200
             data = response.json()
-            assert "model_name" in data
+            assert "model_id" in data
             assert "metrics" in data
             assert "feature_names" in data
             assert "feature_importance" in data
@@ -162,10 +172,11 @@ class TestFeatureImportanceEndpoint:
     """Testes para GET /feature-importance."""
 
     def test_feature_importance(self, client, trained_model):
-        model_path, meta_path, _ = trained_model
+        models_dir, _ = trained_model
         clear_model_cache()
-        with patch("app.ml.predict.MODEL_PATH", model_path), \
-             patch("app.ml.predict.TRAIN_METADATA_PATH", meta_path):
+        with patch("app.ml.model_storage.MODELS_DIR", models_dir), \
+             patch("app.ml.model_storage.INDEX_PATH", models_dir / "index.json"):
+            clear_storage_cache()
             response = client.get("/feature-importance?top_n=5")
             assert response.status_code == 200
             data = response.json()
@@ -183,3 +194,32 @@ class TestMonitoringEndpoints:
     def test_stats_endpoint(self, client):
         response = client.get("/monitoring/stats")
         assert response.status_code == 200
+
+
+class TestModelsEndpoints:
+    """Testes para endpoints de modelos."""
+
+    def test_list_models_empty(self, client, tmp_path):
+        models_dir = tmp_path / "models_empty"
+        models_dir.mkdir()
+        with patch("app.ml.model_storage.MODELS_DIR", models_dir), \
+             patch("app.ml.model_storage.INDEX_PATH", models_dir / "index.json"):
+            clear_storage_cache()
+            response = client.get("/models")
+            assert response.status_code == 200
+            data = response.json()
+            assert data["total"] == 0
+
+    def test_available_models(self, client):
+        response = client.get("/models/available")
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["models"]) >= 1
+        assert any(m["type"] == "xgboost" for m in data["models"])
+
+    def test_available_features(self, client):
+        response = client.get("/features/available")
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["features"]) > 0
+        assert all("name" in f and "category" in f for f in data["features"])

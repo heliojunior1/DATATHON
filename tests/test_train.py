@@ -20,7 +20,7 @@ from app.core.config import RANDOM_STATE, TEST_SIZE
 
 
 class TestGetXGBParamGrid:
-    """Testes para o grid de hiperparâmetros."""
+    """Testes para o grid de hiperparâmetros (wrapper de compat)."""
 
     def test_returns_dict(self):
         grid = get_xgb_param_grid()
@@ -48,7 +48,16 @@ class TestTrainModel:
         X_train, _, y_train, _ = train_test_split(
             X, y, test_size=TEST_SIZE, random_state=RANDOM_STATE, stratify=y
         )
-        model = train_model(X_train, y_train, optimize=False)
+        model = train_model(X_train, y_train, model_type="xgboost", optimize=False)
+        assert isinstance(model, XGBClassifier)
+
+    def test_trains_with_model_type(self, engineered_data):
+        """Verifica que model_type funciona."""
+        X, y = select_features(engineered_data)
+        X_train, _, y_train, _ = train_test_split(
+            X, y, test_size=TEST_SIZE, random_state=RANDOM_STATE, stratify=y
+        )
+        model = train_model(X_train, y_train, model_type="xgboost", optimize=False)
         assert isinstance(model, XGBClassifier)
 
     def test_model_can_predict(self, engineered_data):
@@ -57,7 +66,7 @@ class TestTrainModel:
         X_train, X_test, y_train, y_test = train_test_split(
             X, y, test_size=TEST_SIZE, random_state=RANDOM_STATE, stratify=y
         )
-        model = train_model(X_train, y_train, optimize=False)
+        model = train_model(X_train, y_train, model_type="xgboost", optimize=False)
         predictions = model.predict(X_test)
         assert len(predictions) == len(X_test)
         assert all(p in [0, 1] for p in predictions)
@@ -68,7 +77,7 @@ class TestTrainModel:
         X_train, X_test, y_train, y_test = train_test_split(
             X, y, test_size=TEST_SIZE, random_state=RANDOM_STATE, stratify=y
         )
-        model = train_model(X_train, y_train, optimize=False)
+        model = train_model(X_train, y_train, model_type="xgboost", optimize=False)
         proba = model.predict_proba(X_test)
         assert proba.shape == (len(X_test), 2)
         assert all(0 <= p <= 1 for p in proba[:, 1])
@@ -149,7 +158,7 @@ class TestGetFeatureImportance:
         X_train, _, y_train, _ = train_test_split(
             X, y, test_size=TEST_SIZE, random_state=RANDOM_STATE, stratify=y
         )
-        model = train_model(X_train, y_train, optimize=False)
+        model = train_model(X_train, y_train, model_type="xgboost", optimize=False)
         importance = get_feature_importance(model, list(X_train.columns))
         assert isinstance(importance, list)
         assert len(importance) == len(X_train.columns)
@@ -162,7 +171,7 @@ class TestGetFeatureImportance:
         X_train, _, y_train, _ = train_test_split(
             X, y, test_size=TEST_SIZE, random_state=RANDOM_STATE, stratify=y
         )
-        model = train_model(X_train, y_train, optimize=False)
+        model = train_model(X_train, y_train, model_type="xgboost", optimize=False)
         importance = get_feature_importance(model, list(X_train.columns))
         for item in importance:
             assert "feature" in item

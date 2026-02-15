@@ -1,5 +1,9 @@
 const API = '';
 
+// ===== STATE =====
+let _availableFeatures = [];
+let _trainedModels = [];
+
 // ===== NAVIGATION =====
 function navigate(page) {
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -7,6 +11,7 @@ function navigate(page) {
     document.getElementById('page-' + page).classList.add('active');
     document.querySelector(`.nav a[onclick*="${page}"]`).classList.add('active');
     if (page === 'dashboard') loadDashboard();
+    if (page === 'training') loadTrainingPage();
     if (page === 'monitoring') loadMonitoring();
 }
 
@@ -27,10 +32,36 @@ async function api(path, opts = {}) {
     } catch (e) { toast(e.message); throw e; }
 }
 
+// ===== LOAD TRAINED MODELS (shared) =====
+async function loadTrainedModels() {
+    try {
+        const data = await api('/models');
+        _trainedModels = data.models || [];
+        populateModelDropdowns();
+    } catch (e) { _trainedModels = []; }
+}
+
+function populateModelDropdowns() {
+    const selectors = ['dash-model-select', 'predict-model-select'];
+    selectors.forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const prev = el.value;
+        el.innerHTML = '<option value="">Mais recente</option>';
+        _trainedModels.forEach(m => {
+            const label = `${m.model_type || '?'} — ${m.model_id} (${((m.metrics?.f1_score || 0) * 100).toFixed(1)}% F1)`;
+            el.innerHTML += `<option value="${m.model_id}">${label}</option>`;
+        });
+        if (prev) el.value = prev;
+    });
+}
+
 // ===== DASHBOARD =====
 async function loadDashboard() {
     try {
-        const [health, info] = await Promise.all([api('/health'), api('/model-info')]);
+        const modelId = document.getElementById('dash-model-select')?.value || '';
+        const qs = modelId ? `?model_id=${modelId}` : '';
+        const [health, info] = await Promise.all([api('/health'), api('/model-info' + qs)]);
         const m = info.metrics || {};
         document.getElementById('m-accuracy').textContent = ((m.accuracy || 0) * 100).toFixed(1) + '%';
         document.getElementById('m-f1').textContent = ((m.f1_score || 0) * 100).toFixed(1) + '%';
@@ -38,7 +69,7 @@ async function loadDashboard() {
         document.getElementById('m-precision').textContent = ((m.precision || 0) * 100).toFixed(1) + '%';
         document.getElementById('m-auc').textContent = ((m.auc_roc || 0) * 100).toFixed(1) + '%';
 
-        document.getElementById('m-model').textContent = `${info.model_name || '—'} v${info.model_version || '?'}`;
+        document.getElementById('m-model').textContent = `${info.model_type || info.model_name || '—'} • ${info.model_id || '?'}`;
         document.getElementById('m-features').textContent = `${(info.feature_names || []).length} features`;
         document.getElementById('m-samples').textContent = `${info.n_training_samples || '?'} amostras`;
         document.getElementById('m-status').textContent = health.model_loaded ? '🟢 Online' : '🔴 Offline';
@@ -86,7 +117,7 @@ async function loadDashboard() {
         const lcSection = document.getElementById('lc-section');
         const lcImg = document.getElementById('lc-img');
         try {
-            const lcResp = await fetch('/learning-curve');
+            const lcResp = await fetch('/learning-curve' + qs);
             if (lcResp.ok) {
                 const blob = await lcResp.blob();
                 lcImg.src = URL.createObjectURL(blob);
@@ -98,6 +129,151 @@ async function loadDashboard() {
             lcSection.style.display = 'none';
         }
     } catch (e) { console.error('Dashboard error:', e); }
+}
+
+// ===== TRAINING PAGE =====
+async function loadTrainingPage() {
+    // Load available features
+    try {
+        const data = await api('/features/available');
+        _availableFeatures = data.features || [];
+        renderFeatureSelection();
+    } catch (e) { console.error('Error loading features:', e); }
+
+    // Load trained models list
+    await loadTrainedModelsList();
+}
+
+function renderFeatureSelection() {
+    const container = document.getElementById('feature-selection');
+    // Group by category
+    const groups = {};
+    _availableFeatures.forEach(f => {
+        if (!groups[f.category]) groups[f.category] = [];
+        groups[f.category].push(f);
+    });
+
+    container.innerHTML = Object.entries(groups).map(([cat, feats]) => `
+    <div class="feature-category">
+      <div class="feature-cat-header">${cat}</div>
+      ${feats.map(f => `
+        <label class="feature-item" title="${f.description}">
+          <input type="checkbox" value="${f.name}" ${f.default_selected ? 'checked' : ''} class="feat-cb">
+          <span>${f.name}</span>
+          <small style="color:var(--text2);display:block;font-size:11px">${f.description}</small>
+        </label>
+      `).join('')}
+    </div>
+  `).join('');
+}
+
+function toggleAllFeatures(state) {
+    document.querySelectorAll('.feat-cb').forEach(cb => cb.checked = state);
+}
+
+function resetDefaultFeatures() {
+    document.querySelectorAll('.feat-cb').forEach(cb => {
+        const feat = _availableFeatures.find(f => f.name === cb.value);
+        cb.checked = feat ? feat.default_selected : false;
+    });
+}
+
+function getSelectedFeatures() {
+    return Array.from(document.querySelectorAll('.feat-cb:checked')).map(cb => cb.value);
+}
+
+async function submitTraining() {
+    const btn = document.getElementById('btn-train');
+    btn.classList.add('loading');
+    const resultsDiv = document.getElementById('train-results');
+    resultsDiv.innerHTML = '<div class="card" style="margin-top:20px"><div class="card-title"><span class="card-icon">⏳</span>Treinando modelo... isso pode levar de 10s a 60s</div><div class="train-progress"><div class="train-progress-bar"></div></div></div>';
+
+    try {
+        const features = getSelectedFeatures();
+        if (features.length < 3) { toast('Selecione ao menos 3 features'); btn.classList.remove('loading'); return; }
+
+        const body = {
+            model_type: document.getElementById('train-model-type').value,
+            features,
+            optimize: document.getElementById('train-optimize').value === 'true',
+            n_iter: parseInt(document.getElementById('train-n-iter').value) || 50,
+            include_ian: document.getElementById('train-ian').checked,
+            run_cv: document.getElementById('train-cv').checked,
+            run_learning_curves: document.getElementById('train-lc').checked,
+        };
+
+        const result = await api('/train', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        });
+
+        showTrainResults(result);
+        toast(result.message, 'success');
+
+        // Refresh models list and dropdowns
+        await loadTrainedModels();
+        await loadTrainedModelsList();
+    } catch (e) {
+        resultsDiv.innerHTML = `<div class="card" style="margin-top:20px"><div class="card-title"><span class="card-icon">❌</span>Erro no treinamento</div><p style="color:var(--red)">${e.message}</p></div>`;
+    }
+    btn.classList.remove('loading');
+}
+
+function showTrainResults(r) {
+    const m = r.metrics || {};
+    const resultsDiv = document.getElementById('train-results');
+    resultsDiv.innerHTML = `
+    <div class="card" style="margin-top:20px">
+      <div class="card-title"><span class="card-icon">✅</span>Treinamento Concluído — ${r.model_id}</div>
+      <div class="metrics-grid">
+        <div class="metric-card green"><div class="metric-label">Accuracy</div><div class="metric-value">${((m.accuracy || 0) * 100).toFixed(1)}%</div></div>
+        <div class="metric-card blue"><div class="metric-label">F1-Score</div><div class="metric-value">${((m.f1_score || 0) * 100).toFixed(1)}%</div></div>
+        <div class="metric-card green"><div class="metric-label">Recall</div><div class="metric-value">${((m.recall || 0) * 100).toFixed(1)}%</div></div>
+        <div class="metric-card purple"><div class="metric-label">Precision</div><div class="metric-value">${((m.precision || 0) * 100).toFixed(1)}%</div></div>
+        <div class="metric-card amber"><div class="metric-label">AUC-ROC</div><div class="metric-value">${((m.auc_roc || 0) * 100).toFixed(1)}%</div></div>
+      </div>
+      <div style="margin-top:12px;color:var(--text2)">
+        <strong>Modelo:</strong> ${r.model_type} • <strong>Features:</strong> ${r.feature_names.length} •
+        <strong>Treino:</strong> ${r.n_train} amostras • <strong>Teste:</strong> ${r.n_test} amostras
+      </div>
+      ${r.cv_results ? `<div style="margin-top:8px;color:var(--text2)"><strong>CV F1:</strong> ${((r.cv_results.f1_score?.mean || 0) * 100).toFixed(1)}% ± ${((r.cv_results.f1_score?.std || 0) * 100).toFixed(2)}%</div>` : ''}
+    </div>`;
+}
+
+async function loadTrainedModelsList() {
+    try {
+        const data = await api('/models');
+        const models = data.models || [];
+        const container = document.getElementById('trained-models-list');
+        if (models.length === 0) {
+            container.innerHTML = '<p style="color:var(--text2);text-align:center;padding:20px">Nenhum modelo treinado ainda</p>';
+            return;
+        }
+        container.innerHTML = `<div class="table-wrap"><table>
+            <thead><tr><th>ID</th><th>Tipo</th><th>F1-Score</th><th>Accuracy</th><th>Features</th><th>Amostras</th><th>Treinado em</th><th></th></tr></thead>
+            <tbody>${models.map(m => `<tr>
+                <td><code>${m.model_id}</code></td>
+                <td>${m.model_type || '—'}</td>
+                <td>${((m.metrics?.f1_score || 0) * 100).toFixed(1)}%</td>
+                <td>${((m.metrics?.accuracy || 0) * 100).toFixed(1)}%</td>
+                <td>${m.feature_count || '—'}</td>
+                <td>${m.n_training_samples || '—'}</td>
+                <td>${m.trained_at ? new Date(m.trained_at).toLocaleString('pt-BR') : '—'}</td>
+                <td><button class="btn btn-secondary" style="padding:4px 12px;font-size:12px" onclick="deleteModel('${m.model_id}')">🗑️</button></td>
+            </tr>`).join('')}</tbody>
+        </table></div>`;
+    } catch (e) { console.error('Error loading models list:', e); }
+}
+
+async function deleteModel(modelId) {
+    if (!confirm(`Deletar modelo ${modelId}?`)) return;
+    try {
+        await api(`/models/${modelId}`, { method: 'DELETE' });
+        toast(`Modelo ${modelId} deletado`, 'success');
+        await loadTrainedModels();
+        await loadTrainedModelsList();
+    } catch (e) { /* toast shown by api() */ }
 }
 
 // ===== PREDICTION =====
@@ -118,7 +294,10 @@ async function submitPrediction() {
             const numFields = ['IAA', 'IEG', 'IPS', 'IDA', 'IPV', 'IAN', 'INDE_22', 'Matem', 'Portug', 'Tem_nota_ingles', 'Idade_22', 'Ano_ingresso', 'Cf', 'Ct', 'Num_Av'];
             data[el.dataset.key || f] = numFields.includes(f) ? parseFloat(v) : v;
         });
-        const result = await api('/predict', {
+
+        const modelId = document.getElementById('predict-model-select')?.value || '';
+        const qs = modelId ? `?model_id=${modelId}` : '';
+        const result = await api('/predict' + qs, {
             method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
         });
         showResult(result);
@@ -152,8 +331,8 @@ function showResult(r) {
 // ===== BATCH PREDICTION =====
 function loadBatchExample() {
     document.getElementById('batch-json').value = JSON.stringify([
-        { "IAA": 7.5, "IEG": 8, "IPS": 6.5, "IDA": 7, "IPV": 5.5, "IAN": 5, "INDE 22": 7.2, "Matem": 7.5, "Portug": 6.8, "Tem_nota_ingles": 1, "Fase": "Fase 3", "Idade_22": 14, "Gênero": "Menina", "Instituição de ensino": "Escola Pública", "Ano ingresso": 2018, "Pedra 22": "Ametista", "Atingiu PV": "Não", "Indicado": "Não", "Cf": 50, "Ct": 5, "Nº Av": 3, "Destaque IEG": "Não", "Destaque IDA": "Não", "Destaque IPV": "Não" },
-        { "IAA": 3.2, "IEG": 4.1, "IPS": 3.5, "IDA": 2.8, "IPV": 2.0, "IAN": 0, "INDE 22": 3.1, "Matem": 3.0, "Portug": 2.5, "Tem_nota_ingles": 0, "Fase": "Fase 3", "Idade_22": 17, "Gênero": "Menino", "Instituição de ensino": "Escola Pública", "Ano ingresso": 2020, "Pedra 22": "Quartzo", "Atingiu PV": "Não", "Indicado": "Não", "Cf": 150, "Ct": 15, "Nº Av": 4, "Destaque IEG": "Não", "Destaque IDA": "Não", "Destaque IPV": "Não" }
+        { "IAA": 7.5, "IEG": 8, "IPS": 6.5, "IDA": 7, "IPV": 5.5, "IAN": 5, "INDE 22": 7.2, "Matem": 7.5, "Portug": 6.8, "Tem_nota_ingles": 1, "Fase": "Fase 3", "Idade 22": 14, "Gênero": "Menina", "Instituição de ensino": "Escola Pública", "Ano ingresso": 2018, "Pedra 22": "Ametista", "Atingiu PV": "Não", "Indicado": "Não", "Cf": 50, "Ct": 5, "Nº Av": 3, "Destaque IEG": "Não", "Destaque IDA": "Não", "Destaque IPV": "Não" },
+        { "IAA": 3.2, "IEG": 4.1, "IPS": 3.5, "IDA": 2.8, "IPV": 2.0, "IAN": 0, "INDE 22": 3.1, "Matem": 3.0, "Portug": 2.5, "Tem_nota_ingles": 0, "Fase": "Fase 3", "Idade 22": 17, "Gênero": "Menino", "Instituição de ensino": "Escola Pública", "Ano ingresso": 2020, "Pedra 22": "Quartzo", "Atingiu PV": "Não", "Indicado": "Não", "Cf": 150, "Ct": 15, "Nº Av": 4, "Destaque IEG": "Não", "Destaque IDA": "Não", "Destaque IPV": "Não" }
     ], null, 2);
 }
 
@@ -164,9 +343,14 @@ async function submitBatch() {
         const raw = document.getElementById('batch-json').value.trim();
         const students = JSON.parse(raw);
         if (!Array.isArray(students)) throw new Error('JSON deve ser um array de alunos');
+
+        const modelId = document.getElementById('predict-model-select')?.value || '';
+        const body = { students };
+        if (modelId) body.model_id = modelId;
+
         const result = await api('/predict/batch', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ students })
+            body: JSON.stringify(body)
         });
         showBatchResults(result);
         toast(`${result.total} predições realizadas com sucesso`, 'success');
@@ -211,7 +395,7 @@ async function loadMonitoring() {
         statusEl.textContent = drift.status || 'SEM DADOS';
 
         const container = document.getElementById('drift-details');
-        const features = drift.features || {};
+        const features = drift.details || {};
         const keys = Object.keys(features);
         if (keys.length === 0) {
             container.innerHTML = '<p style="color:var(--text2);text-align:center;padding:20px">Faça predições para gerar dados de monitoramento</p>';
@@ -236,9 +420,15 @@ function fillExample() {
 }
 
 function clearForm() {
-    document.querySelectorAll('#page-predict input, #page-predict select').forEach(el => el.value = '');
+    document.querySelectorAll('#page-predict input, #page-predict select').forEach(el => {
+        if (el.id === 'predict-model-select') return; // Preserve model selection
+        el.value = '';
+    });
     document.getElementById('result-card').classList.remove('show');
 }
 
 // ===== INIT =====
-document.addEventListener('DOMContentLoaded', () => { navigate('dashboard'); });
+document.addEventListener('DOMContentLoaded', async () => {
+    await loadTrainedModels();
+    navigate('dashboard');
+});

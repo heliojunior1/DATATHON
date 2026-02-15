@@ -21,11 +21,12 @@
       </div>
       <ul class="nav">
         <li><a onclick="navigate('dashboard')" class="active"><span class="nav-icon">📊</span>Dashboard</a></li>
+        <li><a onclick="navigate('training')"><span class="nav-icon">🧠</span>Treinamento</a></li>
         <li><a onclick="navigate('predict')"><span class="nav-icon">🔍</span>Predição</a></li>
         <li><a onclick="navigate('batch')"><span class="nav-icon">📋</span>Predição em Lote</a></li>
         <li><a onclick="navigate('monitoring')"><span class="nav-icon">📈</span>Monitoramento</a></li>
       </ul>
-      <div class="sidebar-footer">v1.0.0 • XGBoost</div>
+      <div class="sidebar-footer">v2.0.0 • Multi-Model</div>
     </aside>
 
     <!-- MAIN CONTENT -->
@@ -33,7 +34,11 @@
 
       <!-- ===== DASHBOARD ===== -->
       <div id="page-dashboard" class="page active">
-        <h1 class="page-title">Dashboard</h1>
+        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+          <h1 class="page-title" style="margin:0">Dashboard</h1>
+          <select id="dash-model-select" onchange="loadDashboard()"
+            style="padding:6px 12px;border-radius:8px;border:1px solid var(--border);background:var(--card-bg);color:var(--text1);font-size:14px"></select>
+        </div>
         <p class="page-subtitle">Visão geral do modelo de previsão de risco de defasagem escolar</p>
 
         <div class="metrics-grid">
@@ -105,9 +110,79 @@
         </div>
       </div>
 
+      <!-- ===== TREINAMENTO ===== -->
+      <div id="page-training" class="page">
+        <h1 class="page-title">🧠 Treinamento de Modelo</h1>
+        <p class="page-subtitle">Escolha o tipo de modelo, selecione as features e inicie o treinamento</p>
+
+        <div class="card">
+          <div class="card-title"><span class="card-icon">⚙️</span>Configuração do Modelo</div>
+          <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr">
+            <div class="form-group">
+              <label>Tipo de Modelo</label>
+              <select id="train-model-type">
+                <option value="xgboost">XGBoost</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Otimizar Hiperparâmetros</label>
+              <select id="train-optimize">
+                <option value="false">Não (rápido ~10s)</option>
+                <option value="true">Sim (RandomizedSearchCV ~60s)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Iterações Busca</label>
+              <input type="number" id="train-n-iter" value="50" min="10" max="200">
+            </div>
+          </div>
+          <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr;margin-top:10px">
+            <div class="form-group">
+              <label><input type="checkbox" id="train-cv" checked> K-Fold Cross-Validation</label>
+            </div>
+            <div class="form-group">
+              <label><input type="checkbox" id="train-lc" checked> Learning Curves</label>
+            </div>
+            <div class="form-group">
+              <label><input type="checkbox" id="train-ian"> Incluir IAN (⚠️ data leakage)</label>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title"><span class="card-icon">🔢</span>Selecionar Features
+            <span style="float:right;font-size:13px">
+              <a href="#" onclick="toggleAllFeatures(true);return false" style="color:var(--accent)">Selecionar
+                Todas</a> |
+              <a href="#" onclick="toggleAllFeatures(false);return false" style="color:var(--accent)">Limpar</a> |
+              <a href="#" onclick="resetDefaultFeatures();return false" style="color:var(--accent)">Padrão</a>
+            </span>
+          </div>
+          <div id="feature-selection" class="feature-grid"></div>
+        </div>
+
+        <div class="btn-group">
+          <button class="btn btn-primary" id="btn-train" onclick="submitTraining()">
+            <div class="spinner"></div><span class="btn-text">🚀 Treinar Modelo</span>
+          </button>
+        </div>
+
+        <div id="train-results"></div>
+
+        <!-- Modelos Treinados -->
+        <div class="card" style="margin-top:20px">
+          <div class="card-title"><span class="card-icon">📦</span>Modelos Treinados</div>
+          <div id="trained-models-list"></div>
+        </div>
+      </div>
+
       <!-- ===== PREDIÇÃO ===== -->
       <div id="page-predict" class="page">
-        <h1 class="page-title">Predição Individual</h1>
+        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+          <h1 class="page-title" style="margin:0">Predição Individual</h1>
+          <select id="predict-model-select"
+            style="padding:6px 12px;border-radius:8px;border:1px solid var(--border);background:var(--card-bg);color:var(--text1);font-size:14px"></select>
+        </div>
         <p class="page-subtitle">Preencha os dados do aluno para estimar o risco de defasagem escolar</p>
 
         <div class="card">

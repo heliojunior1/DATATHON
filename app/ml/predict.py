@@ -1,70 +1,42 @@
 """
 Módulo de predição.
 
-Carrega o modelo treinado e faz previsões para novos dados.
+Carrega modelos treinados e faz previsões para novos dados.
+Suporta múltiplos modelos via model_storage.
 """
 import pandas as pd
 import numpy as np
-import joblib
 from pathlib import Path
 
 from app.core.config import (
-    MODEL_PATH,
-    TRAIN_METADATA_PATH,
     PEDRA_ORDINAL_MAP,
     GENERO_MAP,
     ESCOLA_MAP,
     FASE_ORDINAL_MAP,
     IDADE_MAX_ESPERADA,
 )
+from app.ml.model_storage import load_trained_model, clear_cache
 from app.utils.helpers import setup_logger
 
 logger = setup_logger(__name__)
 
-# Cache do modelo carregado
-_model_cache = {}
-_metadata_cache = {}
 
-
-def load_model(model_path: str | Path | None = None) -> tuple:
+def load_model(model_id: str | None = None) -> tuple:
     """
-    Carrega o modelo e metadados do disco.
+    Carrega o modelo e metadados.
 
     Args:
-        model_path: Caminho do modelo. Se None, usa o padrão.
+        model_id: ID do modelo. Se None, usa o mais recente.
 
     Returns:
         Tupla (model, metadata).
     """
-    path = Path(model_path) if model_path else MODEL_PATH
-    meta_path = TRAIN_METADATA_PATH
-
-    cache_key = str(path)
-
-    if cache_key not in _model_cache:
-        if not path.exists():
-            raise FileNotFoundError(
-                f"Modelo não encontrado em: {path}. "
-                "Execute 'python train_pipeline.py' primeiro."
-            )
-        _model_cache[cache_key] = joblib.load(path)
-        logger.info(f"Modelo carregado de: {path}")
-
-    if cache_key not in _metadata_cache:
-        if meta_path.exists():
-            _metadata_cache[cache_key] = joblib.load(meta_path)
-            logger.info(f"Metadados carregados de: {meta_path}")
-        else:
-            _metadata_cache[cache_key] = {}
-
-    return _model_cache[cache_key], _metadata_cache[cache_key]
+    return load_trained_model(model_id)
 
 
 def clear_model_cache() -> None:
     """Limpa o cache do modelo (útil para recarregar após re-treinamento)."""
-    _model_cache.clear()
-    _metadata_cache.clear()
-    logger.info("Cache do modelo limpo")
+    clear_cache()
 
 
 def prepare_input_features(input_data: dict, feature_names: list[str]) -> pd.DataFrame:
@@ -285,21 +257,18 @@ def prepare_input_features(input_data: dict, feature_names: list[str]) -> pd.Dat
     return df
 
 
-def predict(input_data: dict) -> dict:
+def predict(input_data: dict, model_id: str | None = None) -> dict:
     """
     Faz previsão para um aluno.
 
     Args:
         input_data: Dicionário com dados do aluno.
+        model_id: ID do modelo a usar. Se None, usa o mais recente.
 
     Returns:
-        Dicionário com:
-        - prediction: 0 (sem risco) ou 1 (em risco)
-        - probability: probabilidade de risco (0 a 1)
-        - risk_level: descrição textual do risco
-        - top_factors: top 5 features mais influentes para este aluno
+        Dicionário com prediction, probability, risk_level, label, top_factors.
     """
-    model, metadata = load_model()
+    model, metadata = load_model(model_id)
     feature_names = metadata.get("feature_names", [])
 
     X = prepare_input_features(input_data, feature_names)
@@ -329,9 +298,10 @@ def predict(input_data: dict) -> dict:
         "risk_level": risk_level,
         "label": "Em Risco de Defasagem" if prediction == 1 else "Sem Risco",
         "top_factors": top_factors,
+        "model_id": metadata.get("model_id"),
     }
 
 
-def predict_batch(input_list: list[dict]) -> list[dict]:
+def predict_batch(input_list: list[dict], model_id: str | None = None) -> list[dict]:
     """Faz previsão para múltiplos alunos."""
-    return [predict(data) for data in input_list]
+    return [predict(data, model_id=model_id) for data in input_list]

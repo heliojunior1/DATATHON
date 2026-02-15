@@ -4,16 +4,14 @@ Testes do módulo de predição.
 import pytest
 import pandas as pd
 import numpy as np
-import joblib
-import tempfile
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from sklearn.model_selection import train_test_split
-from xgboost import XGBClassifier
 
 from app.ml.predict import prepare_input_features, predict, predict_batch, clear_model_cache
 from app.ml.train import train_model
 from app.ml.feature_engineering import select_features
+from app.ml.model_storage import save_trained_model, clear_cache as clear_storage_cache
 from app.core.config import RANDOM_STATE, TEST_SIZE, SELECTED_FEATURES
 
 
@@ -100,34 +98,34 @@ class TestPredict:
 
     @pytest.fixture
     def trained_model_setup(self, engineered_data, tmp_path):
-        """Treina e salva um modelo temporário para testes."""
+        """Treina e salva um modelo usando model_storage."""
         X, y = select_features(engineered_data)
         X_train, _, y_train, _ = train_test_split(
             X, y, test_size=TEST_SIZE, random_state=RANDOM_STATE, stratify=y
         )
-        model = train_model(X_train, y_train, optimize=False)
+        model = train_model(X_train, y_train, model_type="xgboost", optimize=False)
         feature_names = list(X_train.columns)
 
-        model_path = tmp_path / "test_model.joblib"
-        meta_path = tmp_path / "test_metadata.joblib"
+        models_dir = tmp_path / "models"
+        models_dir.mkdir()
 
-        joblib.dump(model, model_path)
-        joblib.dump({
-            "model_name": "test",
-            "model_version": "0.1",
-            "feature_names": feature_names,
-            "feature_importance": [{"feature": f, "importance": 0.1} for f in feature_names],
-            "metrics": {"f1_score": 0.8},
-        }, meta_path)
-
-        return model_path, meta_path, feature_names
+        with patch("app.ml.model_storage.MODELS_DIR", models_dir), \
+             patch("app.ml.model_storage.INDEX_PATH", models_dir / "index.json"):
+            clear_storage_cache()
+            metadata = {
+                "metrics": {"f1_score": 0.8},
+                "feature_importance": [{"feature": f, "importance": 0.1} for f in feature_names],
+                "n_training_samples": len(X_train),
+            }
+            model_id = save_trained_model(model, metadata, "xgboost", feature_names, X_train)
+            yield models_dir, model_id, feature_names
 
     def test_predict_returns_dict(self, trained_model_setup, sample_student_input):
-        model_path, meta_path, _ = trained_model_setup
+        models_dir, model_id, _ = trained_model_setup
         clear_model_cache()
-
-        with patch("app.ml.predict.MODEL_PATH", model_path), \
-             patch("app.ml.predict.TRAIN_METADATA_PATH", meta_path):
+        with patch("app.ml.model_storage.MODELS_DIR", models_dir), \
+             patch("app.ml.model_storage.INDEX_PATH", models_dir / "index.json"):
+            clear_storage_cache()
             result = predict(sample_student_input)
             assert isinstance(result, dict)
             assert "prediction" in result
@@ -136,39 +134,48 @@ class TestPredict:
             assert "label" in result
 
     def test_prediction_is_binary(self, trained_model_setup, sample_student_input):
-        model_path, meta_path, _ = trained_model_setup
+        models_dir, model_id, _ = trained_model_setup
         clear_model_cache()
-
-        with patch("app.ml.predict.MODEL_PATH", model_path), \
-             patch("app.ml.predict.TRAIN_METADATA_PATH", meta_path):
+        with patch("app.ml.model_storage.MODELS_DIR", models_dir), \
+             patch("app.ml.model_storage.INDEX_PATH", models_dir / "index.json"):
+            clear_storage_cache()
             result = predict(sample_student_input)
             assert result["prediction"] in [0, 1]
 
     def test_probability_range(self, trained_model_setup, sample_student_input):
-        model_path, meta_path, _ = trained_model_setup
+        models_dir, model_id, _ = trained_model_setup
         clear_model_cache()
-
-        with patch("app.ml.predict.MODEL_PATH", model_path), \
-             patch("app.ml.predict.TRAIN_METADATA_PATH", meta_path):
+        with patch("app.ml.model_storage.MODELS_DIR", models_dir), \
+             patch("app.ml.model_storage.INDEX_PATH", models_dir / "index.json"):
+            clear_storage_cache()
             result = predict(sample_student_input)
             assert 0 <= result["probability"] <= 1
 
     def test_risk_level_mapping(self, trained_model_setup, sample_student_input):
-        model_path, meta_path, _ = trained_model_setup
+        models_dir, model_id, _ = trained_model_setup
         clear_model_cache()
-
-        with patch("app.ml.predict.MODEL_PATH", model_path), \
-             patch("app.ml.predict.TRAIN_METADATA_PATH", meta_path):
+        with patch("app.ml.model_storage.MODELS_DIR", models_dir), \
+             patch("app.ml.model_storage.INDEX_PATH", models_dir / "index.json"):
+            clear_storage_cache()
             result = predict(sample_student_input)
             valid_levels = ["Muito Baixo", "Baixo", "Moderado", "Alto", "Muito Alto"]
             assert result["risk_level"] in valid_levels
 
-    def test_predict_batch(self, trained_model_setup, sample_student_input):
-        model_path, meta_path, _ = trained_model_setup
+    def test_predict_with_model_id(self, trained_model_setup, sample_student_input):
+        models_dir, model_id, _ = trained_model_setup
         clear_model_cache()
+        with patch("app.ml.model_storage.MODELS_DIR", models_dir), \
+             patch("app.ml.model_storage.INDEX_PATH", models_dir / "index.json"):
+            clear_storage_cache()
+            result = predict(sample_student_input, model_id=model_id)
+            assert result["model_id"] == model_id
 
-        with patch("app.ml.predict.MODEL_PATH", model_path), \
-             patch("app.ml.predict.TRAIN_METADATA_PATH", meta_path):
+    def test_predict_batch(self, trained_model_setup, sample_student_input):
+        models_dir, model_id, _ = trained_model_setup
+        clear_model_cache()
+        with patch("app.ml.model_storage.MODELS_DIR", models_dir), \
+             patch("app.ml.model_storage.INDEX_PATH", models_dir / "index.json"):
+            clear_storage_cache()
             results = predict_batch([sample_student_input, sample_student_input])
             assert len(results) == 2
             for result in results:
@@ -176,7 +183,10 @@ class TestPredict:
 
     def test_model_not_found_raises(self, tmp_path):
         clear_model_cache()
-        fake_path = tmp_path / "nonexistent.joblib"
-        with patch("app.ml.predict.MODEL_PATH", fake_path):
+        models_dir = tmp_path / "empty_models"
+        models_dir.mkdir()
+        with patch("app.ml.model_storage.MODELS_DIR", models_dir), \
+             patch("app.ml.model_storage.INDEX_PATH", models_dir / "index.json"):
+            clear_storage_cache()
             with pytest.raises(FileNotFoundError):
                 predict({"IAA": 5.0})

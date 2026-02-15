@@ -2,7 +2,7 @@
 Script de treinamento do modelo.
 
 Uso:
-    python train_pipeline.py [--no-optimize] [--no-ian] [--n-iter 50]
+    python train_pipeline.py [--no-optimize] [--no-ian] [--n-iter 50] [--skip-cv] [--skip-learning-curves]
 """
 import sys
 import argparse
@@ -48,6 +48,16 @@ def main():
         default=50,
         help="Número de iterações para RandomizedSearchCV (padrão: 50)",
     )
+    parser.add_argument(
+        "--skip-cv",
+        action="store_true",
+        help="Pula a validação cruzada K-Fold independente",
+    )
+    parser.add_argument(
+        "--skip-learning-curves",
+        action="store_true",
+        help="Pula a geração do gráfico de learning curves",
+    )
 
     args = parser.parse_args()
 
@@ -64,6 +74,8 @@ def main():
         include_ian=include_ian,
         optimize=not args.no_optimize,
         n_iter=args.n_iter,
+        run_cv=not args.skip_cv,
+        run_learning_curves=not args.skip_learning_curves,
     )
 
     # Resumo final
@@ -77,12 +89,27 @@ def main():
     print("  Métricas (conjunto de teste):")
     for metric, value in results["metrics"].items():
         print(f"    {metric:15s}: {value:.4f}")
+
+    # Métricas CV
+    if results.get("cv_results"):
+        print()
+        print("  Métricas (Cross-Validation 5-Fold):")
+        for metric, values in results["cv_results"].items():
+            print(f"    {metric:15s}: {values['mean']:.4f} ± {values['std']:.4f}")
+
     print()
     print("  Top 5 Features:")
     for i, feat in enumerate(results["feature_importance"][:5], 1):
         print(f"    {i}. {feat['feature']:30s} — {feat['importance']:.4f}")
+
+    # Learning curves
+    if results.get("learning_curve_path"):
+        print()
+        print(f"  Learning Curves: {results['learning_curve_path']}")
+
     print("=" * 70)
 
 
 if __name__ == "__main__":
     main()
+

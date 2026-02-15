@@ -29,6 +29,8 @@ from app.ml.evaluate import (
     get_confusion_matrix,
     get_feature_importance,
     log_evaluation_results,
+    cross_validate_model,
+    generate_learning_curves,
 )
 from app.utils.helpers import setup_logger
 
@@ -116,6 +118,8 @@ def save_model_artifacts(
     confusion: dict,
     feature_importance: list[dict],
     X_train: pd.DataFrame,
+    cv_results: dict | None = None,
+    learning_curve_path: str | None = None,
 ) -> None:
     """
     Salva o modelo treinado e metadados.
@@ -127,6 +131,8 @@ def save_model_artifacts(
         confusion: Confusion matrix.
         feature_importance: Ranking de features.
         X_train: Dados de treinamento (para distribuição de referência).
+        cv_results: Resultados do K-Fold CV (opcional).
+        learning_curve_path: Caminho do gráfico de learning curves (opcional).
     """
     # Salvar modelo
     joblib.dump(model, MODEL_PATH)
@@ -141,6 +147,8 @@ def save_model_artifacts(
         "confusion_matrix": confusion,
         "feature_importance": feature_importance,
         "n_training_samples": len(X_train),
+        "cv_results": cv_results,
+        "learning_curve_path": learning_curve_path,
     }
     joblib.dump(metadata, TRAIN_METADATA_PATH)
     logger.info(f"Metadados salvos em: {TRAIN_METADATA_PATH}")
@@ -158,6 +166,8 @@ def run_training_pipeline(
     include_ian: bool | None = None,
     optimize: bool = True,
     n_iter: int = 50,
+    run_cv: bool = True,
+    run_learning_curves: bool = True,
 ) -> dict:
     """
     Executa a pipeline completa de treinamento.
@@ -167,6 +177,8 @@ def run_training_pipeline(
         include_ian: Se True, inclui a feature IAN. Se None, usa config.INCLUDE_IAN.
         optimize: Se True, faz busca de hiperparâmetros.
         n_iter: Número de iterações para busca.
+        run_cv: Se True, executa K-Fold CV independente.
+        run_learning_curves: Se True, gera gráfico de learning curves.
 
     Returns:
         Dicionário com métricas e resultados.
@@ -216,8 +228,22 @@ def run_training_pipeline(
     for i, feat in enumerate(importance[:10], 1):
         logger.info(f"  {i:2d}. {feat['feature']:30s} — {feat['importance']:.4f}")
 
+    # 6.1 Cross-Validation independente
+    cv_results = None
+    if run_cv:
+        cv_results = cross_validate_model(model, X, y)
+
+    # 6.2 Learning Curves
+    learning_curve_path = None
+    if run_learning_curves:
+        learning_curve_path = generate_learning_curves(model, X, y)
+
     # 7. Salvar artefatos
-    save_model_artifacts(model, feature_names, metrics, confusion, importance, X_train)
+    save_model_artifacts(
+        model, feature_names, metrics, confusion, importance, X_train,
+        cv_results=cv_results,
+        learning_curve_path=learning_curve_path,
+    )
 
     results = {
         "model_name": MODEL_NAME,
@@ -228,6 +254,8 @@ def run_training_pipeline(
         "feature_names": feature_names,
         "n_train": len(X_train),
         "n_test": len(X_test),
+        "cv_results": cv_results,
+        "learning_curve_path": learning_curve_path,
     }
 
     logger.info("=" * 70)

@@ -11,6 +11,8 @@ Endpoints:
 - GET  /monitoring/stats  — Estatísticas de predições
 """
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import FileResponse
+from pathlib import Path
 
 from app.api.schemas import (
     StudentInput,
@@ -139,6 +141,7 @@ async def model_info():
             feature_importance=metadata.get("feature_importance", []),
             n_training_samples=metadata.get("n_training_samples", 0),
             confusion_matrix=metadata.get("confusion_matrix", {}),
+            cv_results=metadata.get("cv_results"),
         )
 
     except FileNotFoundError:
@@ -184,3 +187,30 @@ async def drift_status():
 async def prediction_stats():
     """Retorna estatísticas das predições realizadas desde o último restart."""
     return get_prediction_stats()
+
+
+@router.get("/learning-curve", tags=["Modelo"])
+async def learning_curve_image():
+    """
+    Retorna o gráfico de learning curves do modelo.
+
+    O gráfico mostra treino vs validação para diagnóstico de overfitting.
+    """
+    try:
+        _, metadata = load_model()
+        lc_path = metadata.get("learning_curve_path")
+        if lc_path and Path(lc_path).exists():
+            return FileResponse(
+                lc_path,
+                media_type="image/png",
+                filename="learning_curves.png",
+            )
+        raise HTTPException(
+            status_code=404,
+            detail="Learning curves não disponíveis. Execute o treinamento com --skip-learning-curves=false.",
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Erro ao servir learning curves: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

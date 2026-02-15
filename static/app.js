@@ -61,6 +61,42 @@ async function loadDashboard() {
         document.getElementById('cm-tn').textContent = cm.true_negatives ?? '—';
         document.getElementById('cm-fp').textContent = cm.false_positives ?? '—';
         document.getElementById('cm-fn').textContent = cm.false_negatives ?? '—';
+
+        // Cross-Validation results
+        const cvSection = document.getElementById('cv-section');
+        if (info.cv_results) {
+            cvSection.style.display = 'block';
+            const cvGrid = document.getElementById('cv-metrics');
+            const labels = { accuracy: 'Accuracy', precision: 'Precision', recall: 'Recall', f1_score: 'F1-Score', auc_roc: 'AUC-ROC' };
+            const colors = { accuracy: 'green', precision: 'purple', recall: 'green', f1_score: 'blue', auc_roc: 'amber' };
+            cvGrid.innerHTML = Object.entries(labels).map(([key, label]) => {
+                const cv = info.cv_results[key];
+                if (!cv) return '';
+                return `<div class="metric-card ${colors[key]}">
+                    <div class="metric-label">${label}</div>
+                    <div class="metric-value" style="font-size:22px">${(cv.mean * 100).toFixed(1)}%</div>
+                    <div class="metric-sub">± ${(cv.std * 100).toFixed(2)}%</div>
+                </div>`;
+            }).join('');
+        } else {
+            cvSection.style.display = 'none';
+        }
+
+        // Learning Curves
+        const lcSection = document.getElementById('lc-section');
+        const lcImg = document.getElementById('lc-img');
+        try {
+            const lcResp = await fetch('/learning-curve');
+            if (lcResp.ok) {
+                const blob = await lcResp.blob();
+                lcImg.src = URL.createObjectURL(blob);
+                lcSection.style.display = 'block';
+            } else {
+                lcSection.style.display = 'none';
+            }
+        } catch (e) {
+            lcSection.style.display = 'none';
+        }
     } catch (e) { console.error('Dashboard error:', e); }
 }
 

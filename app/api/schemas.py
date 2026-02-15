@@ -91,6 +91,7 @@ class ModelInfoResponse(BaseModel):
     feature_importance: list[dict]
     n_training_samples: int
     confusion_matrix: dict
+    cv_results: Optional[dict] = None
 
 
 class HealthResponse(BaseModel):

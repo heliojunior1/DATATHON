@@ -85,18 +85,38 @@ def get_confusion_matrix(y_true: np.ndarray, y_pred: np.ndarray) -> dict:
     }
 
 
-def get_feature_importance(model, feature_names: list[str]) -> list[dict]:
+def get_feature_importance(model, feature_names: list[str], X_test=None, y_test=None) -> list[dict]:
     """
     Extrai e ordena a importância das features do modelo.
 
     Args:
-        model: Modelo treinado com atributo feature_importances_.
+        model: Modelo treinado.
         feature_names: Lista de nomes das features.
+        X_test: Dados de teste (usado para permutation importance como fallback).
+        y_test: Target de teste (usado para permutation importance como fallback).
 
     Returns:
         Lista de dicts {feature, importance} ordenada por importância.
     """
-    importances = model.feature_importances_
+    importances = None
+
+    # Tentar feature_importances_ nativo
+    if hasattr(model, "feature_importances_"):
+        importances = model.feature_importances_
+
+    # Fallback: permutation importance
+    if importances is None and X_test is not None and y_test is not None:
+        try:
+            from sklearn.inspection import permutation_importance
+            perm_result = permutation_importance(model, X_test, y_test, n_repeats=5, random_state=42, n_jobs=-1)
+            importances = perm_result.importances_mean
+        except Exception:
+            pass
+
+    # Último fallback: importâncias iguais
+    if importances is None:
+        importances = [1.0 / len(feature_names)] * len(feature_names)
+
     importance_list = [
         {"feature": name, "importance": float(imp)}
         for name, imp in zip(feature_names, importances)

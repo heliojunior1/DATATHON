@@ -30,6 +30,7 @@ def _generate_model_id(model_type: str) -> str:
         "xgboost": "xgb",
         "catboost": "cat",
         "lightgbm": "lgb",
+        "tabpfn": "tpfn",
         "logistic_regression": "lr",
         "svm": "svm",
         "stacking": "stack",

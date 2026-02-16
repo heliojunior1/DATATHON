@@ -5,6 +5,8 @@ Centraliza a configuração de todos os tipos de modelo suportados.
 """
 from xgboost import XGBClassifier
 from catboost import CatBoostClassifier
+from lightgbm import LGBMClassifier
+from tabpfn import TabPFNClassifier
 
 from app.core.config import RANDOM_STATE
 from app.utils.helpers import setup_logger
@@ -71,12 +73,52 @@ MODEL_REGISTRY: dict[str, dict] = {
             "border_count": [32, 64, 128, 254],
         },
     },
+    "lightgbm": {
+        "name": "LightGBM",
+        "description": "Gradient Boosting leve e eficiente — rápido para datasets grandes",
+        "supports_nan": True,
+        "default_params": {
+            "max_depth": 4,
+            "num_leaves": 31,
+            "n_estimators": 200,
+            "learning_rate": 0.1,
+            "subsample": 0.8,
+            "colsample_bytree": 0.8,
+            "min_child_samples": 20,
+            "reg_alpha": 0.1,
+            "reg_lambda": 1.0,
+            "random_state": RANDOM_STATE,
+            "verbose": -1,
+        },
+        "param_grid": {
+            "n_estimators": [100, 200, 300, 500],
+            "num_leaves": [15, 31, 50, 70],
+            "max_depth": [3, 4, 5, 6, 7, -1],
+            "learning_rate": [0.01, 0.03, 0.05, 0.1, 0.2],
+            "subsample": [0.6, 0.7, 0.8, 0.9, 1.0],
+            "colsample_bytree": [0.6, 0.7, 0.8, 0.9, 1.0],
+            "min_child_samples": [5, 10, 20, 50],
+            "reg_alpha": [0, 0.01, 0.1, 1.0],
+            "reg_lambda": [0, 1, 2, 5],
+        },
+    },
+    "tabpfn": {
+        "name": "TabPFN",
+        "description": "Transformer pré-treinado para dados tabulares — ideal para datasets pequenos (<10k amostras)",
+        "supports_nan": True,
+        "supports_scale_pos_weight": False,
+        "supports_hyperparam_search": False,
+        "default_params": {
+            "n_estimators": 8,
+            "softmax_temperature": 0.9,
+            "balance_probabilities": True,
+        },
+        "param_grid": {},  # TabPFN é pré-treinado, sem busca de hiperparâmetros
+    },
     # Fase 2 — modelos futuros (placeholder)
-    # "lightgbm": { ... },
     # "logistic_regression": { ... },
     # "svm": { ... },
     # "stacking": { ... },
-    # "tabnet": { ... },
 }
 
 
@@ -119,6 +161,18 @@ def get_param_grid(model_type: str) -> dict:
     return MODEL_REGISTRY[model_type]["param_grid"]
 
 
+def supports_hyperparam_search(model_type: str) -> bool:
+    """Retorna se o modelo suporta busca de hiperparâmetros."""
+    cfg = MODEL_REGISTRY.get(model_type, {})
+    return cfg.get("supports_hyperparam_search", True)
+
+
+def supports_scale_pos_weight(model_type: str) -> bool:
+    """Retorna se o modelo suporta scale_pos_weight."""
+    cfg = MODEL_REGISTRY.get(model_type, {})
+    return cfg.get("supports_scale_pos_weight", True)
+
+
 def create_model(
     model_type: str,
     scale_pos_weight: float = 1.0,
@@ -159,6 +213,14 @@ def create_model(
             scale_pos_weight=scale_pos_weight,
             **merged_params,
         )
+    elif model_type == "lightgbm":
+        model = LGBMClassifier(
+            scale_pos_weight=scale_pos_weight,
+            **merged_params,
+        )
+    elif model_type == "tabpfn":
+        # TabPFN não aceita scale_pos_weight
+        model = TabPFNClassifier(**merged_params)
     else:
         raise ValueError(f"Factory não implementada para '{model_type}'.")
 

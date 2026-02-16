@@ -1,0 +1,449 @@
+{
+  "xgboost": {
+    "model_id": "xgb_20260216_101754",
+    "metrics": {
+      "accuracy": 0.9593023255813954,
+      "precision": 0.991304347826087,
+      "recall": 0.95,
+      "f1_score": 0.9702127659574468,
+      "auc_roc": 0.9966346153846155
+    },
+    "cv_results": {
+      "accuracy": {
+        "mean": 0.963953488372093,
+        "std": 0.008544731660871531,
+        "folds": [
+          0.9476744186046512,
+          0.9651162790697675,
+          0.9651162790697675,
+          0.9709302325581395,
+          0.9709302325581395
+        ]
+      },
+      "precision": {
+        "mean": 0.977002038445719,
+        "std": 0.015751327829527775,
+        "folds": [
+          0.9666666666666667,
+          0.9672131147540983,
+          0.9596774193548387,
+          1.0,
+          0.9914529914529915
+        ]
+      },
+      "recall": {
+        "mean": 0.9717355371900827,
+        "std": 0.013472778430532531,
+        "folds": [
+          0.9586776859504132,
+          0.9833333333333333,
+          0.9916666666666667,
+          0.9583333333333334,
+          0.9666666666666667
+        ]
+      },
+      "f1_score": {
+        "mean": 0.9741796814274778,
+        "std": 0.005972051531410434,
+        "folds": [
+          0.9626556016597511,
+          0.9752066115702479,
+          0.9754098360655737,
+          0.9787234042553191,
+          0.9789029535864979
+        ]
+      },
+      "auc_roc": {
+        "mean": 0.9925735761564638,
+        "std": 0.006129620457212983,
+        "folds": [
+          0.9897909577053963,
+          0.9932692307692308,
+          0.9823717948717949,
+          0.9988782051282051,
+          0.9985576923076923
+        ]
+      }
+    },
+    "feature_importance": [
+      {
+        "feature": "Nº Av",
+        "importance": 0.11132175475358963
+      },
+      {
+        "feature": "Idade 22",
+        "importance": 0.07541166245937347
+      },
+      {
+        "feature": "Fase_encoded",
+        "importance": 0.07514157146215439
+      },
+      {
+        "feature": "Indicado_flag",
+        "importance": 0.07071215659379959
+      },
+      {
+        "feature": "Cf",
+        "importance": 0.06731769442558289
+      },
+      {
+        "feature": "Rec_av2_encoded",
+        "importance": 0.06010376662015915
+      },
+      {
+        "feature": "Tem_nota_ingles",
+        "importance": 0.05252554267644882
+      },
+      {
+        "feature": "Escola_encoded",
+        "importance": 0.04973158985376358
+      },
+      {
+        "feature": "INDE 22",
+        "importance": 0.045831065624952316
+      },
+      {
+        "feature": "Variancia_indicadores",
+        "importance": 0.043408311903476715
+      }
+    ],
+    "n_train": 688,
+    "n_test": 172,
+    "feature_names": [
+      "IAA",
+      "IEG",
+      "IPS",
+      "IDA",
+      "IPV",
+      "INDE 22",
+      "Matem",
+      "Portug",
+      "Idade 22",
+      "Genero_encoded",
+      "Escola_encoded",
+      "Anos_na_PM",
+      "Fase_encoded",
+      "Pedra_20_encoded",
+      "Pedra_21_encoded",
+      "Pedra_22_encoded",
+      "Evolucao_pedra_20_22",
+      "Evolucao_pedra_21_22",
+      "tinha_pedra_20",
+      "tinha_pedra_21",
+      "Ponto_virada_flag",
+      "Indicado_flag",
+      "Destaque_IEG_flag",
+      "Destaque_IDA_flag",
+      "Destaque_IPV_flag",
+      "Tem_nota_ingles",
+      "Rec_av1_encoded",
+      "Rec_av2_encoded",
+      "Cf",
+      "Ct",
+      "Nº Av",
+      "tem_ranking_cf",
+      "tem_ranking_ct",
+      "Variancia_indicadores",
+      "Ratio_IDA_IEG"
+    ]
+  },
+  "catboost": {
+    "model_id": "cat_20260216_101759",
+    "metrics": {
+      "accuracy": 1.0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1_score": 1.0,
+      "auc_roc": 1.0
+    },
+    "cv_results": {
+      "accuracy": {
+        "mean": 0.9883720930232558,
+        "std": 0.013257853780222519,
+        "folds": [
+          1.0,
+          0.9825581395348837,
+          0.9651162790697675,
+          1.0,
+          0.9941860465116279
+        ]
+      },
+      "precision": {
+        "mean": 0.9839452491337193,
+        "std": 0.01812172128916224,
+        "folds": [
+          1.0,
+          0.975609756097561,
+          0.9523809523809523,
+          1.0,
+          0.9917355371900827
+        ]
+      },
+      "recall": {
+        "mean": 1.0,
+        "std": 0.0,
+        "folds": [
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "f1_score": {
+        "mean": 0.9918229398983709,
+        "std": 0.009275727063474307,
+        "folds": [
+          1.0,
+          0.9876543209876543,
+          0.975609756097561,
+          1.0,
+          0.995850622406639
+        ]
+      },
+      "auc_roc": {
+        "mean": 0.9993589743589743,
+        "std": 0.0012035245740717,
+        "folds": [
+          1.0,
+          1.0,
+          0.9969551282051282,
+          1.0,
+          0.9998397435897436
+        ]
+      }
+    },
+    "feature_importance": [
+      {
+        "feature": "Idade 22",
+        "importance": 49.50602563905791
+      },
+      {
+        "feature": "Fase_encoded",
+        "importance": 29.752371888502378
+      },
+      {
+        "feature": "Nº Av",
+        "importance": 5.190702313708621
+      },
+      {
+        "feature": "Cf",
+        "importance": 5.15258936303092
+      },
+      {
+        "feature": "INDE 22",
+        "importance": 1.6717292700351813
+      },
+      {
+        "feature": "IPV",
+        "importance": 1.0106990749777076
+      },
+      {
+        "feature": "Portug",
+        "importance": 0.8377147696246127
+      },
+      {
+        "feature": "IDA",
+        "importance": 0.7952311656913067
+      },
+      {
+        "feature": "Rec_av2_encoded",
+        "importance": 0.7184770648703954
+      },
+      {
+        "feature": "Ratio_IDA_IEG",
+        "importance": 0.687857353024855
+      }
+    ],
+    "n_train": 688,
+    "n_test": 172,
+    "feature_names": [
+      "IAA",
+      "IEG",
+      "IPS",
+      "IDA",
+      "IPV",
+      "INDE 22",
+      "Matem",
+      "Portug",
+      "Idade 22",
+      "Genero_encoded",
+      "Escola_encoded",
+      "Anos_na_PM",
+      "Fase_encoded",
+      "Pedra_20_encoded",
+      "Pedra_21_encoded",
+      "Pedra_22_encoded",
+      "Evolucao_pedra_20_22",
+      "Evolucao_pedra_21_22",
+      "tinha_pedra_20",
+      "tinha_pedra_21",
+      "Ponto_virada_flag",
+      "Indicado_flag",
+      "Destaque_IEG_flag",
+      "Destaque_IDA_flag",
+      "Destaque_IPV_flag",
+      "Tem_nota_ingles",
+      "Rec_av1_encoded",
+      "Rec_av2_encoded",
+      "Cf",
+      "Ct",
+      "Nº Av",
+      "tem_ranking_cf",
+      "tem_ranking_ct",
+      "Variancia_indicadores",
+      "Ratio_IDA_IEG"
+    ]
+  },
+  "lightgbm": {
+    "model_id": "lgb_20260216_101808",
+    "metrics": {
+      "accuracy": 0.9941860465116279,
+      "precision": 0.9917355371900827,
+      "recall": 1.0,
+      "f1_score": 0.995850622406639,
+      "auc_roc": 1.0
+    },
+    "cv_results": {
+      "accuracy": {
+        "mean": 0.9872093023255815,
+        "std": 0.010002703798886793,
+        "folds": [
+          1.0,
+          0.9825581395348837,
+          0.9709302325581395,
+          0.9941860465116279,
+          0.9883720930232558
+        ]
+      },
+      "precision": {
+        "mean": 0.9838023919908622,
+        "std": 0.014288577686480697,
+        "folds": [
+          1.0,
+          0.975609756097561,
+          0.96,
+          0.9917355371900827,
+          0.9916666666666667
+        ]
+      },
+      "recall": {
+        "mean": 0.9983333333333334,
+        "std": 0.0033333333333333214,
+        "folds": [
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          0.9916666666666667
+        ]
+      },
+      "f1_score": {
+        "mean": 0.990952689359131,
+        "std": 0.0070185689115953975,
+        "folds": [
+          1.0,
+          0.9876543209876543,
+          0.9795918367346939,
+          0.995850622406639,
+          0.9916666666666667
+        ]
+      },
+      "auc_roc": {
+        "mean": 0.9988461538461539,
+        "std": 0.0015747587816074618,
+        "folds": [
+          1.0,
+          0.9987179487179487,
+          0.9958333333333333,
+          0.9998397435897436,
+          0.9998397435897436
+        ]
+      }
+    },
+    "feature_importance": [
+      {
+        "feature": "Idade 22",
+        "importance": 379.0
+      },
+      {
+        "feature": "Fase_encoded",
+        "importance": 252.0
+      },
+      {
+        "feature": "Cf",
+        "importance": 127.0
+      },
+      {
+        "feature": "IPV",
+        "importance": 103.0
+      },
+      {
+        "feature": "INDE 22",
+        "importance": 91.0
+      },
+      {
+        "feature": "Ratio_IDA_IEG",
+        "importance": 88.0
+      },
+      {
+        "feature": "Variancia_indicadores",
+        "importance": 74.0
+      },
+      {
+        "feature": "IDA",
+        "importance": 64.0
+      },
+      {
+        "feature": "Portug",
+        "importance": 60.0
+      },
+      {
+        "feature": "Matem",
+        "importance": 59.0
+      }
+    ],
+    "n_train": 688,
+    "n_test": 172,
+    "feature_names": [
+      "IAA",
+      "IEG",
+      "IPS",
+      "IDA",
+      "IPV",
+      "INDE 22",
+      "Matem",
+      "Portug",
+      "Idade 22",
+      "Genero_encoded",
+      "Escola_encoded",
+      "Anos_na_PM",
+      "Fase_encoded",
+      "Pedra_20_encoded",
+      "Pedra_21_encoded",
+      "Pedra_22_encoded",
+      "Evolucao_pedra_20_22",
+      "Evolucao_pedra_21_22",
+      "tinha_pedra_20",
+      "tinha_pedra_21",
+      "Ponto_virada_flag",
+      "Indicado_flag",
+      "Destaque_IEG_flag",
+      "Destaque_IDA_flag",
+      "Destaque_IPV_flag",
+      "Tem_nota_ingles",
+      "Rec_av1_encoded",
+      "Rec_av2_encoded",
+      "Cf",
+      "Ct",
+      "Nº Av",
+      "tem_ranking_cf",
+      "tem_ranking_ct",
+      "Variancia_indicadores",
+      "Ratio_IDA_IEG"
+    ]
+  },
+  "tabpfn": {
+    "error": "Failed to download TabPFN ModelVersion.V2_5 model 'tabpfn-v2.5-classifier-v2.5_default.ckpt'.\n\nDetails and instructions:\nHuggingFace authentication error downloading from 'Prior-Labs/tabpfn_2_5'.\nThis model is gated and requires you to accept its terms.\n\nPlease follow these steps:\n1. Visit https://huggingface.co/Prior-Labs/tabpfn_2_5 in your browser and accept the terms of use.\n2. Log in to your Hugging Face account via the command line by running:\n   hf auth login\n   (Alternatively, you can set the HF_TOKEN environment variable   with a read token.)\n\nFor detailed instructions, see https://docs.priorlabs.ai/how-to-access-gated-models\n\nFor commercial usage, we provide alternative download options for TabPFN ModelVersion.V2_5; please reach out to us at sales@priorlabs.ai."
+  }
+}

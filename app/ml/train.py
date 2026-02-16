@@ -16,7 +16,7 @@ from app.core.config import (
     INCLUDE_IAN,
     AVAILABLE_FEATURES,
 )
-from app.ml.model_registry import create_model, get_param_grid
+from app.ml.model_registry import create_model, get_param_grid, supports_hyperparam_search, supports_scale_pos_weight
 from app.ml.model_storage import save_trained_model
 from app.ml.preprocessing import preprocess_dataset
 from app.ml.feature_engineering import run_feature_engineering, select_features
@@ -66,12 +66,17 @@ def train_model(
 
     logger.info(f"Scale pos weight: {scale_pos_weight:.2f} (neg={n_negative}, pos={n_positive})")
 
+    # Verificar se modelo suporta scale_pos_weight
+    model_kwargs = {}
+    if supports_scale_pos_weight(model_type):
+        model_kwargs["scale_pos_weight"] = scale_pos_weight
+
     base_model = create_model(
         model_type=model_type,
-        scale_pos_weight=scale_pos_weight,
+        **model_kwargs,
     )
 
-    if optimize:
+    if optimize and supports_hyperparam_search(model_type):
         logger.info(f"Iniciando RandomizedSearchCV com {n_iter} iterações e {CV_FOLDS} folds...")
         cv = StratifiedKFold(n_splits=CV_FOLDS, shuffle=True, random_state=RANDOM_STATE)
         param_grid = get_param_grid(model_type)
@@ -176,7 +181,7 @@ def run_training_pipeline(
     metrics = calculate_metrics(y_test, y_pred, y_proba)
     report = get_classification_report(y_test, y_pred)
     confusion = get_confusion_matrix(y_test, y_pred)
-    importance = get_feature_importance(model, feature_names)
+    importance = get_feature_importance(model, feature_names, X_test, y_test)
 
     log_evaluation_results(metrics, report, confusion)
 

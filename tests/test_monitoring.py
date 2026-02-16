@@ -1,7 +1,7 @@
 """
 Testes adicionais para aumentar cobertura.
 
-Cobrindo: monitoring/drift.py, ml/train.py (save), e ml/preprocessing.py (preprocess_dataset).
+Cobrindo: monitoring/drift.py, ml/model_storage (save), e ml/preprocessing.py (preprocess_dataset).
 """
 import pytest
 import numpy as np
@@ -19,7 +19,7 @@ from app.monitoring.drift import (
     check_all_drift,
     _prediction_log,
 )
-from app.ml.train import save_model_artifacts, run_training_pipeline
+from app.ml.model_storage import save_trained_model, clear_cache as clear_storage_cache
 from app.ml.preprocessing import preprocess_dataset, load_dataset
 from app.ml.evaluate import log_evaluation_results
 
@@ -63,50 +63,35 @@ class TestDriftMonitoring:
         psi = calculate_psi(ref, prod)
         assert psi > 0.1
 
-
-
-    def test_check_drift_few_values(self, tmp_path):
-        ref_path = tmp_path / "ref.joblib"
-        # Criar DataFrame de referência
+    def test_check_drift_few_values(self):
         df_ref = pd.DataFrame({"IAA": [4.0, 5.0, 6.0, 5.0, 5.0]})
-        joblib.dump(df_ref, ref_path)
-        
-        with patch("app.monitoring.drift.REFERENCE_DIST_PATH", ref_path):
-            result = check_drift("IAA", np.array([5.0]), df_ref)
-            assert "warning" in result
+        result = check_drift("IAA", np.array([5.0]), df_ref)
+        assert "warning" in result
 
-    def test_check_drift_valid(self, tmp_path):
-        ref_path = tmp_path / "ref.joblib"
+    def test_check_drift_valid(self):
         df_ref = pd.DataFrame({"IAA": np.random.normal(5, 1, 100).tolist()})
-        joblib.dump(df_ref, ref_path)
-        
-        with patch("app.monitoring.drift.REFERENCE_DIST_PATH", ref_path):
-            result = check_drift("IAA", np.random.normal(5, 1, 50), df_ref)
-            assert "drift_status" in result
-            assert result["drift_status"] in ["OK", "WARNING", "DRIFT_DETECTED"]
+        result = check_drift("IAA", np.random.normal(5, 1, 50), df_ref)
+        assert "drift_status" in result
+        assert result["drift_status"] in ["OK", "WARNING", "DRIFT_DETECTED"]
 
-    def test_check_drift_wrong_feature(self, tmp_path):
-        ref_path = tmp_path / "ref.joblib"
+    def test_check_drift_wrong_feature(self):
         df_ref = pd.DataFrame({"IAA": [1, 2, 3]})
-        joblib.dump(df_ref, ref_path)
-        
-        with patch("app.monitoring.drift.REFERENCE_DIST_PATH", ref_path):
-            result = check_drift("NONEXISTENT", np.array([5.0, 6.0]), df_ref)
-            assert "error" in result
+        result = check_drift("NONEXISTENT", np.array([5.0, 6.0]), df_ref)
+        assert "error" in result
 
     def test_check_all_drift_no_data(self):
         result = check_all_drift()
         assert result["status"] == "NO_DATA"
 
-    def test_check_all_drift_no_reference(self, tmp_path):
+    def test_check_all_drift_no_reference(self):
         log_prediction({"IAA": 5.0}, {"prediction": 0, "probability": 0.2})
-        with patch("app.monitoring.drift.REFERENCE_DIST_PATH", tmp_path / "nonexistent.joblib"):
+        with patch("app.monitoring.drift.load_reference_data", return_value=None):
             result = check_all_drift()
             assert result["status"] == "NO_REFERENCE"
 
 
 class TestSaveModelArtifacts:
-    """Testes para salvamento de artefatos do modelo."""
+    """Testes para salvamento de artefatos via model_storage."""
 
     def test_save_model(self, engineered_data, tmp_path):
         from app.ml.feature_engineering import select_features
@@ -115,34 +100,38 @@ class TestSaveModelArtifacts:
 
         X, y = select_features(engineered_data)
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
-        model = train_model(X_train, y_train, optimize=False)
+        model = train_model(X_train, y_train, model_type="xgboost", optimize=False)
 
-        model_path = tmp_path / "model.joblib"
-        meta_path = tmp_path / "metadata.joblib"
-        ref_path = tmp_path / "reference.joblib"
+        models_dir = tmp_path / "models"
+        models_dir.mkdir()
 
-        with patch("app.ml.train.MODEL_PATH", model_path), \
-             patch("app.ml.train.TRAIN_METADATA_PATH", meta_path), \
-             patch("app.ml.train.REFERENCE_DIST_PATH", ref_path):
-            save_model_artifacts(
+        with patch("app.ml.model_storage.MODELS_DIR", models_dir), \
+             patch("app.ml.model_storage.INDEX_PATH", models_dir / "index.json"):
+            clear_storage_cache()
+            model_id = save_trained_model(
                 model=model,
+                metadata={
+                    "metrics": {"f1_score": 0.9},
+                    "confusion_matrix": {"tn": 10, "fp": 1, "fn": 2, "tp": 8},
+                    "feature_importance": [{"feature": "IAA", "importance": 0.5}],
+                    "n_training_samples": len(X_train),
+                },
+                model_type="xgboost",
                 feature_names=list(X_train.columns),
-                metrics={"f1_score": 0.9},
-                confusion={"tn": 10, "fp": 1, "fn": 2, "tp": 8},
-                feature_importance=[{"feature": "IAA", "importance": 0.5}],
                 X_train=X_train,
             )
 
-        assert model_path.exists()
-        assert meta_path.exists()
-        assert ref_path.exists()
+        model_dir = models_dir / model_id
+        assert (model_dir / "model.joblib").exists()
+        assert (model_dir / "metadata.joblib").exists()
+        assert (model_dir / "reference.joblib").exists()
 
-        metadata = joblib.load(meta_path)
+        metadata = joblib.load(model_dir / "metadata.joblib")
         assert "feature_names" in metadata
         assert "metrics" in metadata
-        
+
         # Verificar se referência é DataFrame
-        ref_sample = joblib.load(ref_path)
+        ref_sample = joblib.load(model_dir / "reference.joblib")
         assert isinstance(ref_sample, pd.DataFrame)
         assert len(ref_sample) <= 1000
 

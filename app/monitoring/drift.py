@@ -6,12 +6,10 @@ e dados de produção para detectar drift.
 """
 import numpy as np
 import pandas as pd
-import joblib
 from datetime import datetime
 from scipy import stats as scipy_stats
-from pathlib import Path
 
-from app.core.config import REFERENCE_DIST_PATH
+from app.ml.model_storage import load_reference_data
 from app.utils.helpers import setup_logger
 
 logger = setup_logger(__name__)
@@ -88,7 +86,6 @@ def calculate_psi(reference: np.ndarray, production: np.ndarray, bins: int = 10)
     eps = 1e-6
 
     try:
-        # Criar bins baseados na distribuição combinada
         breakpoints = np.linspace(
             min(np.min(reference), np.min(production)),
             max(np.max(reference), np.max(production)),
@@ -126,20 +123,15 @@ def check_drift(feature_name: str, production_values: np.ndarray, reference_samp
     if len(prod_values) < 5:
         return {"warning": "Poucos dados de produção para análise de drift."}
 
-    # Estatísticas
     ref_mean = float(np.mean(ref_values))
     ref_std = float(np.std(ref_values))
     prod_mean = float(np.mean(prod_values))
-    
-    # Teste KS (Kolmogorov-Smirnov) REAIS
-    # Compara a distribuição de produção com a amostra real de treino
+
     ks_stat, ks_pvalue = scipy_stats.ks_2samp(ref_values, prod_values)
 
-    # Desvio da média (z-score shift)
     div = ref_std if ref_std > 1e-6 else 1.0
     mean_shift = abs(prod_mean - ref_mean) / div
 
-    # Classificação do drift
     if ks_pvalue < 0.01 or mean_shift > 2.0:
         drift_status = "DRIFT_DETECTED"
     elif ks_pvalue < 0.05 or mean_shift > 1.0:
@@ -152,7 +144,7 @@ def check_drift(feature_name: str, production_values: np.ndarray, reference_samp
         "drift_status": drift_status,
         "ks_statistic": float(ks_stat),
         "ks_pvalue": float(ks_pvalue),
-        "mean_shift": float(mean_shift), # Renamed for frontend consistency
+        "mean_shift": float(mean_shift),
         "reference_mean": ref_mean,
         "production_mean": prod_mean,
     }
@@ -161,6 +153,7 @@ def check_drift(feature_name: str, production_values: np.ndarray, reference_samp
 def check_all_drift() -> dict:
     """
     Verifica drift para todas as features logadas.
+    Usa model_storage para carregar a referência do modelo mais recente.
 
     Returns:
         Dicionário com status de drift por feature.
@@ -168,17 +161,17 @@ def check_all_drift() -> dict:
     if not _prediction_log:
         return {"status": "NO_DATA", "message": "Nenhuma predição registrada ainda."}
 
-    if not REFERENCE_DIST_PATH.exists():
+    # Carregar referência do modelo mais recente via model_storage
+    try:
+        reference_sample = load_reference_data(None)
+    except Exception:
+        reference_sample = None
+
+    if reference_sample is None:
         return {"status": "NO_REFERENCE", "message": "Distribuição de referência não encontrada."}
 
-    # Carregar amostra real (DataFrame)
-    try:
-        reference_sample = joblib.load(REFERENCE_DIST_PATH)
-        if not isinstance(reference_sample, pd.DataFrame):
-            # Fallback se carregar versão antiga (dict)
-            return {"status": "ERROR", "message": "Formato de referência incompatível (re-treine o modelo)."}
-    except Exception as e:
-        return {"status": "ERROR", "message": f"Erro ao carregar referência: {str(e)}"}
+    if not isinstance(reference_sample, pd.DataFrame):
+        return {"status": "ERROR", "message": "Formato de referência incompatível (re-treine o modelo)."}
 
     # Coletar valores por feature dos logs
     feature_values = {}
@@ -199,7 +192,6 @@ def check_all_drift() -> dict:
 
     for feat_name, values in feature_values.items():
         if len(values) >= 5:
-            # Pass full reference dataframe
             result = check_drift(feat_name, np.array(values), reference_sample)
             results[feat_name] = result
             if result.get("drift_status") == "DRIFT_DETECTED":
@@ -221,3 +213,4 @@ def check_all_drift() -> dict:
         "details": results,
         "prediction_stats": get_prediction_stats(),
     }
+

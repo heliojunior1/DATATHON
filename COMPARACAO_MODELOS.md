@@ -10,11 +10,8 @@
 |--------|:--------:|:--------:|:---------:|:------:|:-------:|
 | **CatBoost** 🥇 | **1.0000** | **1.0000** | **1.0000** | **1.0000** | **1.0000** |
 | **LightGBM** 🥈 | 0.9942 | 0.9959 | 0.9917 | **1.0000** | **1.0000** |
-| **XGBoost** 🥉 | 0.9593 | 0.9702 | 0.9913 | 0.9500 | 0.9966 |
-| TabPFN | — | — | — | — | — |
-
-> [!NOTE]
-> TabPFN não pôde ser avaliado nesta comparação pois o modelo pré-treinado requer autenticação no HuggingFace (modelo *gated*). Veja instruções em [docs.priorlabs.ai](https://docs.priorlabs.ai/how-to-access-gated-models).
+| **TabPFN** 🥉 | 0.9826 | 0.9876 | 0.9835 | 0.9917 | 0.9997 |
+| **XGBoost** | 0.9593 | 0.9702 | 0.9913 | 0.9500 | 0.9966 |
 
 ---
 
@@ -22,84 +19,44 @@
 
 | Modelo | CV F1 (média ± std) | CV Accuracy | CV Precision | CV Recall | CV AUC-ROC |
 |--------|:-------------------:|:-----------:|:------------:|:---------:|:----------:|
-| **CatBoost** 🥇 | **0.9918 ± 0.0093** | 0.9884 ± 0.0133 | 0.9839 ± 0.0181 | **1.0000 ± 0.0000** | **0.9994 ± 0.0012** |
-| **LightGBM** 🥈 | 0.9910 ± 0.0070 | 0.9872 ± 0.0100 | 0.9838 ± 0.0143 | 0.9983 ± 0.0033 | 0.9988 ± 0.0016 |
-| **XGBoost** 🥉 | 0.9742 ± 0.0060 | 0.9640 ± 0.0085 | 0.9770 ± 0.0158 | 0.9717 ± 0.0135 | 0.9926 ± 0.0061 |
+| **TabPFN** 🥇 | **0.9958 ± 0.0027** | **0.9942 ± 0.0037** | **0.9983 ± 0.0033** | 0.9933 ± 0.0062 | **0.9997 ± 0.0004** |
+| **CatBoost** 🥈 | 0.9918 ± 0.0093 | 0.9884 ± 0.0133 | 0.9839 ± 0.0181 | **1.0000 ± 0.0000** | 0.9994 ± 0.0012 |
+| **LightGBM** 🥉 | 0.9910 ± 0.0070 | 0.9872 ± 0.0100 | 0.9838 ± 0.0143 | 0.9983 ± 0.0033 | 0.9988 ± 0.0016 |
+| **XGBoost** | 0.9742 ± 0.0060 | 0.9640 ± 0.0085 | 0.9770 ± 0.0158 | 0.9717 ± 0.0135 | 0.9926 ± 0.0061 |
 
 > [!IMPORTANT]
-> Os resultados de **Cross-Validation confirmam o ranking** do test set. CatBoost e LightGBM são muito próximos (diferença de 0.08% no F1), enquanto XGBoost fica ~1.7% abaixo.
+> No **Cross-Validation**, o TabPFN lidera com o maior F1 e o menor desvio-padrão (0.0027), indicando a melhor **consistência** entre todos os modelos. CatBoost lidera no test set, mas TabPFN generaliza melhor.
 
 ---
 
 ## 3. Matriz de Confusão (Test Set)
 
-```
-                 CatBoost          LightGBM          XGBoost
-               Pred 0  Pred 1    Pred 0  Pred 1    Pred 0  Pred 1
-Real 0 (52)      52      0         51      1         51      1
-Real 1 (120)      0    120          0    120          6    114
-```
-
-| Modelo | TN | FP | FN | TP |
-|--------|:--:|:--:|:--:|:--:|
-| CatBoost | 52 | 0 | 0 | 120 |
-| LightGBM | 51 | 1 | 0 | 120 |
-| XGBoost | 51 | 1 | 6 | 114 |
+| Modelo | TN | FP | FN | TP | Erros |
+|--------|:--:|:--:|:--:|:--:|:-----:|
+| CatBoost | 52 | 0 | 0 | 120 | 0 |
+| LightGBM | 51 | 1 | 0 | 120 | 1 |
+| TabPFN | 51 | 1 | 1 | 119 | 2 |
+| XGBoost | 51 | 1 | 6 | 114 | 7 |
 
 > [!WARNING]
-> O XGBoost teve **6 falsos negativos** (alunos em risco classificados como sem risco). Para um sistema de detecção de risco de evasão, o Recall de 100% do CatBoost e LightGBM é preferível — nenhum aluno em risco deixa de ser identificado.
+> O XGBoost teve **6 falsos negativos** (alunos em risco classificados como sem risco). Para detecção de risco de evasão, CatBoost e LightGBM (100% recall) são preferíveis.
 
 ---
 
 ## 4. Top 10 Features Mais Importantes
 
-### CatBoost
-| # | Feature | Importância |
-|---|---------|:-----------:|
-| 1 | Idade 22 | 49.51 |
-| 2 | Fase_encoded | 29.75 |
-| 3 | Nº Av | 5.19 |
-| 4 | Cf | 5.15 |
-| 5 | INDE 22 | 1.67 |
-| 6 | IPV | 1.01 |
-| 7 | Portug | 0.84 |
-| 8 | IDA | 0.80 |
-| 9 | Rec_av2_encoded | 0.72 |
-| 10 | Ratio_IDA_IEG | 0.69 |
+### Por Modelo (Top 5)
 
-### LightGBM
-| # | Feature | Importância |
-|---|---------|:-----------:|
-| 1 | Idade 22 | 379 |
-| 2 | Fase_encoded | 252 |
-| 3 | Cf | 127 |
-| 4 | IPV | 103 |
-| 5 | INDE 22 | 91 |
-| 6 | Ratio_IDA_IEG | 88 |
-| 7 | Variancia_indicadores | 74 |
-| 8 | IDA | 64 |
-| 9 | Portug | 60 |
-| 10 | Matem | 59 |
-
-### XGBoost
-| # | Feature | Importância |
-|---|---------|:-----------:|
-| 1 | Nº Av | 0.1113 |
-| 2 | Idade 22 | 0.0754 |
-| 3 | Fase_encoded | 0.0751 |
-| 4 | Indicado_flag | 0.0707 |
-| 5 | Cf | 0.0673 |
-| 6 | Rec_av2_encoded | 0.0601 |
-| 7 | Tem_nota_ingles | 0.0525 |
-| 8 | Escola_encoded | 0.0497 |
-| 9 | INDE 22 | 0.0458 |
-| 10 | Variancia_indicadores | 0.0434 |
+| # | XGBoost | CatBoost | LightGBM | TabPFN |
+|---|---------|----------|----------|--------|
+| 1 | Nº Av | **Idade 22** | **Idade 22** | **Idade 22** |
+| 2 | Idade 22 | **Fase_encoded** | **Fase_encoded** | INDE 22 |
+| 3 | Fase_encoded | Nº Av | Cf | Cf |
+| 4 | Indicado_flag | Cf | IPV | IEG |
+| 5 | Cf | INDE 22 | INDE 22 | IPV |
 
 > [!NOTE]
-> As escalas de importância são diferentes entre modelos (CatBoost usa *prediction value change*, LightGBM usa *split count*, XGBoost usa *gain fraction*), mas as **features mais relevantes são consistentes**:
-> - **Idade 22** e **Fase_encoded** dominam em todos os modelos
-> - **Cf**, **INDE 22** e **IPV** aparecem no top 6 de todos
-> - **Nº Av** é mais valorizada pelo XGBoost do que pelos outros
+> **Consenso entre modelos:** `Idade 22` é a feature mais importante em 3 dos 4 modelos. `Cf`, `INDE 22` e `IPV` também aparecem consistentemente no top 5. As escalas de importância diferem por modelo (XGBoost=gain fraction, CatBoost=prediction value change, LightGBM=split count, TabPFN=permutation importance).
 
 ---
 
@@ -107,38 +64,38 @@ Real 1 (120)      0    120          0    120          6    114
 
 ### Ranking Final
 
-| Posição | Modelo | Pontos Fortes | Pontos Fracos |
-|:-------:|--------|---------------|---------------|
-| 🥇 | **CatBoost** | Melhor desempenho geral, 100% recall, robusto a NaN, codificação categórica nativa | Pode indicar leve overfitting (100% test set), mais lento que LightGBM |
-| 🥈 | **LightGBM** | Muito próximo do CatBoost, mais rápido, 100% recall | 1 falso positivo |
-| 🥉 | **XGBoost** | Robusto e bem estabelecido, boa calibração | 6 falsos negativos, recall menor |
-| — | **TabPFN** | Ideal para datasets pequenos, sem tuning necessário | Requer autenticação HuggingFace, dependência do PyTorch |
+| Pos | Modelo | Test F1 | CV F1 | Pontos Fortes | Pontos Fracos |
+|:---:|--------|:-------:|:-----:|---------------|---------------|
+| 🥇 | **CatBoost** | 1.0000 | 0.9918 | Melhor test set, 100% recall, robusto a NaN | Possível leve overfitting |
+| 🥈 | **TabPFN** | 0.9876 | **0.9958** | **Melhor CV**, mais consistente, sem tuning | Lento, não suporta NaN, limite de features |
+| 🥉 | **LightGBM** | 0.9959 | 0.9910 | Rápido, 100% recall, robusto a NaN | 1 FP |
+| 4 | **XGBoost** | 0.9702 | 0.9742 | Estabelecido, boa calibração | 6 FN, recall mais baixo |
 
 ### Recomendação
 
-Para o caso de uso de **detecção de risco de evasão escolar**, onde o custo de um falso negativo (não identificar um aluno em risco) é alto:
+Para **detecção de risco de evasão escolar** (custo alto de falso negativo):
 
-- **Produção:** Usar **CatBoost** como modelo principal (melhor recall + precisão)
-- **Backup:** **LightGBM** como alternativa rápida com desempenho quase idêntico
-- **Monitorar:** Ficar atento a overfitting do CatBoost conforme novos dados entram — o CV (F1=0.9918) confirma boa generalização
+- **Produção:** **CatBoost** como modelo principal (100% recall + melhor precisão no test set)
+- **Validação:** **TabPFN** como referência de generalização (melhor CV F1, menor variância)
+- **Backup:** **LightGBM** como alternativa rápida com 100% recall
 
 ---
 
-## 6. Modelos Disponíveis na API
-
-Todos os modelos estão disponíveis para treinamento via API:
+## 6. Modelos na API
 
 ```json
 POST /train
 {
-  "model_type": "catboost",  // ou "xgboost", "lightgbm", "tabpfn"
-  "optimize": false
+  "model_type": "catboost"  // ou "xgboost", "lightgbm", "tabpfn"
 }
 ```
 
 | Tipo | Status | Model ID |
 |------|--------|----------|
-| xgboost | ✅ Operacional | `xgb_20260216_101754` |
-| catboost | ✅ Operacional | `cat_20260216_101759` |
-| lightgbm | ✅ Operacional | `lgb_20260216_101808` |
-| tabpfn | ⚠️ Requer HF Auth | — |
+| xgboost | ✅ Operacional | `xgb_20260216_104712` |
+| catboost | ✅ Operacional | `cat_20260216_104720` |
+| lightgbm | ✅ Operacional | `lgb_20260216_104729` |
+| tabpfn | ✅ Operacional | `tpfn_20260216_105151` |
+
+> [!NOTE]
+> TabPFN v1 (0.1.11) requer o patch `python scripts/patch_tabpfn.py` após instalação para compatibilidade com PyTorch ≥ 2.0.

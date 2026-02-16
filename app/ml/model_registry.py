@@ -104,14 +104,14 @@ MODEL_REGISTRY: dict[str, dict] = {
     },
     "tabpfn": {
         "name": "TabPFN",
-        "description": "Transformer pré-treinado para dados tabulares — ideal para datasets pequenos (<10k amostras)",
-        "supports_nan": True,
+        "description": "Transformer pré-treinado para dados tabulares — ideal para datasets pequenos (<1k amostras, <=100 features)",
+        "supports_nan": False,
         "supports_scale_pos_weight": False,
         "supports_hyperparam_search": False,
         "default_params": {
-            "n_estimators": 8,
-            "softmax_temperature": 0.9,
-            "balance_probabilities": True,
+            "device": "cpu",
+            "N_ensemble_configurations": 8,
+            "seed": 42,
         },
         "param_grid": {},  # TabPFN é pré-treinado, sem busca de hiperparâmetros
     },

@@ -169,20 +169,24 @@ class TestCreateModel:
         model = create_model("tabpfn")
         assert isinstance(model, TabPFNClassifier)
 
-    def test_tabpfn_n_estimators(self):
-        model = create_model("tabpfn", params={"n_estimators": 4})
-        assert model.n_estimators == 4
+    def test_tabpfn_ensemble_configurations(self):
+        model = create_model("tabpfn", params={"N_ensemble_configurations": 4})
+        assert model.N_ensemble_configurations == 4
+
+    def test_tabpfn_default_device_cpu(self):
+        model = create_model("tabpfn")
+        assert model.device == "cpu"
 
     def test_tabpfn_fit_predict(self):
-        """Smoke test: TabPFN deve treinar e prever em dados simples."""
-        model = create_model("tabpfn", params={"n_estimators": 2})
+        """Smoke test: TabPFN v1 deve treinar e prever em dados simples."""
+        model = create_model("tabpfn", params={"N_ensemble_configurations": 2})
         X = np.random.rand(50, 5)
         y = (X[:, 0] > 0.5).astype(int)
         try:
             model.fit(X, y)
-        except RuntimeError as e:
-            if "download" in str(e).lower():
-                pytest.skip("TabPFN model not available for download")
+        except Exception as e:
+            if "download" in str(e).lower() or "checkpoint" in str(e).lower():
+                pytest.skip("TabPFN model checkpoint not available")
             raise
         preds = model.predict(X[:5])
         assert len(preds) == 5

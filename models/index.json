@@ -1,0 +1,30 @@
+[
+  {
+    "model_id": "xgb_20260216_094158",
+    "model_type": "xgboost",
+    "trained_at": "2026-02-16T09:41:58.853550",
+    "metrics": {
+      "accuracy": 0.9593023255813954,
+      "precision": 0.991304347826087,
+      "recall": 0.95,
+      "f1_score": 0.9702127659574468,
+      "auc_roc": 0.9966346153846155
+    },
+    "feature_count": 35,
+    "n_training_samples": 688
+  },
+  {
+    "model_id": "cat_20260216_094200",
+    "model_type": "catboost",
+    "trained_at": "2026-02-16T09:42:00.861179",
+    "metrics": {
+      "accuracy": 1.0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1_score": 1.0,
+      "auc_roc": 1.0
+    },
+    "feature_count": 35,
+    "n_training_samples": 688
+  }
+]

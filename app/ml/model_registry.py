@@ -2,9 +2,9 @@
 Model Registry — Factory pattern para criação de modelos.
 
 Centraliza a configuração de todos os tipos de modelo suportados.
-Fase 1: XGBoost apenas. Fase 2 adicionará LightGBM, LR, SVM, Stacking, TabNet.
 """
 from xgboost import XGBClassifier
+from catboost import CatBoostClassifier
 
 from app.core.config import RANDOM_STATE
 from app.utils.helpers import setup_logger
@@ -40,6 +40,35 @@ MODEL_REGISTRY: dict[str, dict] = {
             "gamma": [0, 0.1, 0.2, 0.3],
             "reg_alpha": [0, 0.01, 0.1],
             "reg_lambda": [1, 1.5, 2],
+        },
+    },
+    "catboost": {
+        "name": "CatBoost",
+        "description": "Gradient Boosting com codificação categórica nativa — robusto a NaN e overfitting",
+        "supports_nan": True,
+        "default_params": {
+            "depth": 4,
+            "iterations": 200,
+            "learning_rate": 0.1,
+            "l2_leaf_reg": 3.0,
+            "subsample": 0.8,
+            "random_strength": 1.0,
+            "bagging_temperature": 1.0,
+            "border_count": 128,
+            "eval_metric": "Logloss",
+            "random_seed": RANDOM_STATE,
+            "verbose": 0,
+            "allow_writing_files": False,
+        },
+        "param_grid": {
+            "iterations": [100, 200, 300, 500],
+            "depth": [3, 4, 5, 6, 7, 8],
+            "learning_rate": [0.01, 0.03, 0.05, 0.1, 0.2],
+            "l2_leaf_reg": [1, 3, 5, 7, 10],
+            "subsample": [0.6, 0.7, 0.8, 0.9, 1.0],
+            "random_strength": [0.5, 1.0, 2.0, 5.0],
+            "bagging_temperature": [0, 0.5, 1.0, 2.0],
+            "border_count": [32, 64, 128, 254],
         },
     },
     # Fase 2 — modelos futuros (placeholder)
@@ -99,7 +128,7 @@ def create_model(
     Cria uma instância de modelo com parâmetros padrão + overrides.
 
     Args:
-        model_type: Tipo do modelo ("xgboost", etc.).
+        model_type: Tipo do modelo ("xgboost", "catboost", etc.).
         scale_pos_weight: Peso para balanceamento de classes.
         params: Overrides aos parâmetros padrão (opcional).
 
@@ -122,6 +151,11 @@ def create_model(
 
     if model_type == "xgboost":
         model = XGBClassifier(
+            scale_pos_weight=scale_pos_weight,
+            **merged_params,
+        )
+    elif model_type == "catboost":
+        model = CatBoostClassifier(
             scale_pos_weight=scale_pos_weight,
             **merged_params,
         )

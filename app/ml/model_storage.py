@@ -28,6 +28,7 @@ def _generate_model_id(model_type: str) -> str:
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     prefix_map = {
         "xgboost": "xgb",
+        "catboost": "cat",
         "lightgbm": "lgb",
         "logistic_regression": "lr",
         "svm": "svm",

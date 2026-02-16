@@ -427,8 +427,30 @@ function clearForm() {
     document.getElementById('result-card').classList.remove('show');
 }
 
+// ===== MODEL TYPE CHANGE HANDLER =====
+function onModelTypeChange() {
+    const modelType = document.getElementById('train-model-type').value;
+    const optimizeSelect = document.getElementById('train-optimize');
+    const nIterInput = document.getElementById('train-n-iter');
+
+    // TabPFN não suporta otimização de hiperparâmetros
+    const noOptimize = (modelType === 'tabpfn');
+    optimizeSelect.disabled = noOptimize;
+    nIterInput.disabled = noOptimize;
+    if (noOptimize) {
+        optimizeSelect.value = 'false';
+    }
+}
+
 // ===== INIT =====
 document.addEventListener('DOMContentLoaded', async () => {
     await loadTrainedModels();
+
+    // Attach model type change handler
+    const modelSelect = document.getElementById('train-model-type');
+    if (modelSelect) {
+        modelSelect.onchange = onModelTypeChange;
+    }
+
     navigate('dashboard');
 });

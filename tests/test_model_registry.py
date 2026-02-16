@@ -7,6 +7,9 @@ from xgboost import XGBClassifier
 from catboost import CatBoostClassifier
 from lightgbm import LGBMClassifier
 from tabpfn import TabPFNClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.svm import SVC
+from sklearn.pipeline import Pipeline
 
 from app.ml.model_registry import (
     create_model,
@@ -21,7 +24,7 @@ class TestGetAvailableModels:
     def test_returns_list(self):
         models = get_available_models()
         assert isinstance(models, list)
-        assert len(models) >= 4  # XGBoost + CatBoost + LightGBM + TabPFN
+        assert len(models) >= 6  # XGBoost + CatBoost + LightGBM + TabPFN + LogReg + SVM
 
     def test_xgboost_available(self):
         models = get_available_models()
@@ -42,6 +45,16 @@ class TestGetAvailableModels:
         models = get_available_models()
         types = [m["type"] for m in models]
         assert "tabpfn" in types
+
+    def test_logistic_regression_available(self):
+        models = get_available_models()
+        types = [m["type"] for m in models]
+        assert "logistic_regression" in types
+
+    def test_svm_available(self):
+        models = get_available_models()
+        types = [m["type"] for m in models]
+        assert "svm" in types
 
     def test_model_has_required_fields(self):
         models = get_available_models()
@@ -82,6 +95,20 @@ class TestGetParamGrid:
         assert isinstance(grid, dict)
         assert len(grid) == 0
 
+    def test_logistic_regression_grid(self):
+        grid = get_param_grid("logistic_regression")
+        assert isinstance(grid, dict)
+        assert "C" in grid
+        assert "penalty" in grid
+        assert "solver" in grid
+
+    def test_svm_grid(self):
+        grid = get_param_grid("svm")
+        assert isinstance(grid, dict)
+        assert "svc__C" in grid
+        assert "svc__kernel" in grid
+        assert "svc__gamma" in grid
+
     def test_invalid_model_raises(self):
         with pytest.raises(ValueError, match="não registrado"):
             get_param_grid("modelo_inexistente")
@@ -105,6 +132,18 @@ class TestSupportsFlags:
 
     def test_tabpfn_no_scale_pos_weight(self):
         assert supports_scale_pos_weight("tabpfn") is False
+
+    def test_logistic_regression_supports_hyperparam(self):
+        assert supports_hyperparam_search("logistic_regression") is True
+
+    def test_logistic_regression_no_scale_pos_weight(self):
+        assert supports_scale_pos_weight("logistic_regression") is False
+
+    def test_svm_supports_hyperparam(self):
+        assert supports_hyperparam_search("svm") is True
+
+    def test_svm_no_scale_pos_weight(self):
+        assert supports_scale_pos_weight("svm") is False
 
 
 class TestCreateModel:
@@ -188,6 +227,71 @@ class TestCreateModel:
             if "download" in str(e).lower() or "checkpoint" in str(e).lower():
                 pytest.skip("TabPFN model checkpoint not available")
             raise
+        preds = model.predict(X[:5])
+        assert len(preds) == 5
+        proba = model.predict_proba(X[:5])
+        assert proba.shape == (5, 2)
+
+    # ── Logistic Regression ──
+    def test_create_logistic_regression(self):
+        model = create_model("logistic_regression")
+        assert isinstance(model, LogisticRegression)
+
+    def test_logistic_regression_class_weight_balanced(self):
+        model = create_model("logistic_regression")
+        assert model.class_weight == "balanced"
+
+    def test_logistic_regression_with_params(self):
+        model = create_model("logistic_regression", params={"C": 0.01})
+        assert model.C == 0.01
+
+    def test_logistic_regression_solver(self):
+        model = create_model("logistic_regression", params={"solver": "liblinear"})
+        assert model.solver == "liblinear"
+
+    def test_logistic_regression_fit_predict(self):
+        """Smoke test: Regressão Logística deve treinar e prever."""
+        model = create_model("logistic_regression")
+        X = np.random.rand(100, 5)
+        y = (X[:, 0] > 0.5).astype(int)
+        model.fit(X, y)
+        preds = model.predict(X[:5])
+        assert len(preds) == 5
+        proba = model.predict_proba(X[:5])
+        assert proba.shape == (5, 2)
+
+    # ── SVM (Pipeline com StandardScaler) ──
+    def test_create_svm(self):
+        model = create_model("svm")
+        assert isinstance(model, Pipeline)
+        assert isinstance(model.named_steps["svc"], SVC)
+
+    def test_svm_has_scaler(self):
+        model = create_model("svm")
+        assert "scaler" in model.named_steps
+
+    def test_svm_class_weight_balanced(self):
+        model = create_model("svm")
+        assert model.named_steps["svc"].class_weight == "balanced"
+
+    def test_svm_probability_enabled(self):
+        model = create_model("svm")
+        assert model.named_steps["svc"].probability is True
+
+    def test_svm_with_params(self):
+        model = create_model("svm", params={"C": 10.0})
+        assert model.named_steps["svc"].C == 10.0
+
+    def test_svm_kernel(self):
+        model = create_model("svm", params={"kernel": "linear"})
+        assert model.named_steps["svc"].kernel == "linear"
+
+    def test_svm_fit_predict(self):
+        """Smoke test: SVM com StandardScaler deve treinar e prever."""
+        model = create_model("svm")
+        X = np.random.rand(100, 5)
+        y = (X[:, 0] > 0.5).astype(int)
+        model.fit(X, y)
         preds = model.predict(X[:5])
         assert len(preds) == 5
         proba = model.predict_proba(X[:5])

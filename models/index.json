@@ -124,5 +124,173 @@
     },
     "feature_count": 35,
     "n_training_samples": 688
+  },
+  {
+    "model_id": "xgb_20260216_111547",
+    "model_type": "xgboost",
+    "trained_at": "2026-02-16T11:15:47.142628",
+    "metrics": {
+      "accuracy": 0.9593023255813954,
+      "precision": 0.991304347826087,
+      "recall": 0.95,
+      "f1_score": 0.9702127659574468,
+      "auc_roc": 0.9966346153846155
+    },
+    "feature_count": 35,
+    "n_training_samples": 688
+  },
+  {
+    "model_id": "cat_20260216_111549",
+    "model_type": "catboost",
+    "trained_at": "2026-02-16T11:15:49.079271",
+    "metrics": {
+      "accuracy": 1.0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1_score": 1.0,
+      "auc_roc": 1.0
+    },
+    "feature_count": 35,
+    "n_training_samples": 688
+  },
+  {
+    "model_id": "lgb_20260216_111551",
+    "model_type": "lightgbm",
+    "trained_at": "2026-02-16T11:15:51.340445",
+    "metrics": {
+      "accuracy": 0.9941860465116279,
+      "precision": 0.9917355371900827,
+      "recall": 1.0,
+      "f1_score": 0.995850622406639,
+      "auc_roc": 1.0
+    },
+    "feature_count": 35,
+    "n_training_samples": 688
+  },
+  {
+    "model_id": "tpfn_20260216_111917",
+    "model_type": "tabpfn",
+    "trained_at": "2026-02-16T11:19:18.097168",
+    "metrics": {
+      "accuracy": 0.9825581395348837,
+      "precision": 0.9834710743801653,
+      "recall": 0.9916666666666667,
+      "f1_score": 0.9875518672199171,
+      "auc_roc": 0.9996794871794872
+    },
+    "feature_count": 35,
+    "n_training_samples": 688
+  },
+  {
+    "model_id": "lr_20260216_111922",
+    "model_type": "logistic_regression",
+    "trained_at": "2026-02-16T11:19:22.076282",
+    "metrics": {
+      "accuracy": 1.0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1_score": 1.0,
+      "auc_roc": 1.0
+    },
+    "feature_count": 35,
+    "n_training_samples": 688
+  },
+  {
+    "model_id": "svm_20260216_111924",
+    "model_type": "svm",
+    "trained_at": "2026-02-16T11:19:24.890842",
+    "metrics": {
+      "accuracy": 0.6744186046511628,
+      "precision": 0.8137254901960784,
+      "recall": 0.6916666666666667,
+      "f1_score": 0.7477477477477478,
+      "auc_roc": 0.7914262820512821
+    },
+    "feature_count": 35,
+    "n_training_samples": 688
+  },
+  {
+    "model_id": "xgb_20260216_112524",
+    "model_type": "xgboost",
+    "trained_at": "2026-02-16T11:25:24.233448",
+    "metrics": {
+      "accuracy": 0.9593023255813954,
+      "precision": 0.991304347826087,
+      "recall": 0.95,
+      "f1_score": 0.9702127659574468,
+      "auc_roc": 0.9966346153846155
+    },
+    "feature_count": 35,
+    "n_training_samples": 688
+  },
+  {
+    "model_id": "cat_20260216_112526",
+    "model_type": "catboost",
+    "trained_at": "2026-02-16T11:25:26.220246",
+    "metrics": {
+      "accuracy": 1.0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1_score": 1.0,
+      "auc_roc": 1.0
+    },
+    "feature_count": 35,
+    "n_training_samples": 688
+  },
+  {
+    "model_id": "lgb_20260216_112528",
+    "model_type": "lightgbm",
+    "trained_at": "2026-02-16T11:25:28.446521",
+    "metrics": {
+      "accuracy": 0.9941860465116279,
+      "precision": 0.9917355371900827,
+      "recall": 1.0,
+      "f1_score": 0.995850622406639,
+      "auc_roc": 1.0
+    },
+    "feature_count": 35,
+    "n_training_samples": 688
+  },
+  {
+    "model_id": "tpfn_20260216_112936",
+    "model_type": "tabpfn",
+    "trained_at": "2026-02-16T11:29:36.535424",
+    "metrics": {
+      "accuracy": 0.9825581395348837,
+      "precision": 0.9834710743801653,
+      "recall": 0.9916666666666667,
+      "f1_score": 0.9875518672199171,
+      "auc_roc": 0.9996794871794872
+    },
+    "feature_count": 35,
+    "n_training_samples": 688
+  },
+  {
+    "model_id": "lr_20260216_112940",
+    "model_type": "logistic_regression",
+    "trained_at": "2026-02-16T11:29:40.633254",
+    "metrics": {
+      "accuracy": 1.0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1_score": 1.0,
+      "auc_roc": 1.0
+    },
+    "feature_count": 35,
+    "n_training_samples": 688
+  },
+  {
+    "model_id": "svm_20260216_112942",
+    "model_type": "svm",
+    "trained_at": "2026-02-16T11:29:42.871940",
+    "metrics": {
+      "accuracy": 0.9302325581395349,
+      "precision": 0.9354838709677419,
+      "recall": 0.9666666666666667,
+      "f1_score": 0.9508196721311475,
+      "auc_roc": 0.9863782051282051
+    },
+    "feature_count": 35,
+    "n_training_samples": 688
   }
 ]

@@ -12,7 +12,7 @@ from app.ml.train import run_training_pipeline
 
 
 def main():
-    models_to_test = ["xgboost", "catboost", "lightgbm", "tabpfn"]
+    models_to_test = ["xgboost", "catboost", "lightgbm", "tabpfn", "logistic_regression", "svm"]
     all_results = {}
 
     for model_type in models_to_test:

@@ -7,6 +7,10 @@ from xgboost import XGBClassifier
 from catboost import CatBoostClassifier
 from lightgbm import LGBMClassifier
 from tabpfn import TabPFNClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.svm import SVC
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
 
 from app.core.config import RANDOM_STATE
 from app.utils.helpers import setup_logger
@@ -115,9 +119,46 @@ MODEL_REGISTRY: dict[str, dict] = {
         },
         "param_grid": {},  # TabPFN é pré-treinado, sem busca de hiperparâmetros
     },
+    "logistic_regression": {
+        "name": "Regressão Logística",
+        "description": "Modelo linear clássico — rápido, interpretável e bom baseline",
+        "supports_nan": False,
+        "supports_scale_pos_weight": False,
+        "default_params": {
+            "C": 1.0,
+            "penalty": "l2",
+            "solver": "lbfgs",
+            "max_iter": 1000,
+            "class_weight": "balanced",
+            "random_state": RANDOM_STATE,
+        },
+        "param_grid": {
+            "C": [0.001, 0.01, 0.1, 1.0, 10.0, 100.0],
+            "penalty": ["l1", "l2"],
+            "solver": ["lbfgs", "liblinear", "saga"],
+            "max_iter": [500, 1000, 2000],
+        },
+    },
+    "svm": {
+        "name": "SVM",
+        "description": "Support Vector Machine — eficaz em espaços de alta dimensionalidade",
+        "supports_nan": False,
+        "supports_scale_pos_weight": False,
+        "default_params": {
+            "C": 1.0,
+            "kernel": "rbf",
+            "gamma": "scale",
+            "probability": True,
+            "class_weight": "balanced",
+            "random_state": RANDOM_STATE,
+        },
+        "param_grid": {
+            "svc__C": [0.01, 0.1, 1.0, 10.0, 100.0],
+            "svc__kernel": ["rbf", "linear", "poly"],
+            "svc__gamma": ["scale", "auto", 0.01, 0.1, 1.0],
+        },
+    },
     # Fase 2 — modelos futuros (placeholder)
-    # "logistic_regression": { ... },
-    # "svm": { ... },
     # "stacking": { ... },
 }
 
@@ -221,6 +262,15 @@ def create_model(
     elif model_type == "tabpfn":
         # TabPFN não aceita scale_pos_weight
         model = TabPFNClassifier(**merged_params)
+    elif model_type == "logistic_regression":
+        # LogisticRegression usa class_weight='balanced' ao invés de scale_pos_weight
+        model = LogisticRegression(**merged_params)
+    elif model_type == "svm":
+        # SVM em Pipeline com StandardScaler para normalização automática
+        model = Pipeline([
+            ("scaler", StandardScaler()),
+            ("svc", SVC(**merged_params)),
+        ])
     else:
         raise ValueError(f"Factory não implementada para '{model_type}'.")
 

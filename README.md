@@ -41,11 +41,30 @@ Pipeline completa de Machine Learning usando **XGBoost** como classificador bin�
 ### Stack Tecnológica
 - **Linguagem**: Python 3.11
 - **ML**: scikit-learn, XGBoost, pandas, numpy, matplotlib
+- **Feature Store**: Feast + SQLite (Online) + Parquet (Offline)
 - **API**: FastAPI + Uvicorn
 - **Serialização**: joblib
-- **Testes**: pytest (105 testes)
+- **Testes**: pytest (126 testes)
 - **Empacotamento**: Docker
 - **Monitoramento**: drift detection (PSI, KS-test)
+
+---
+
+## 🏛️ Arquitetura do Feature Store
+
+A aplicação agora utiliza o **Feast** como Feature Store local para centralizar e garantir a consistência das features entre treinamento e inferência.
+
+```mermaid
+graph LR
+    A[Dataset PEDE<br>Excel] --> B[Preprocessing]
+    B --> C[Feature Engineering]
+    C --> D[Parquet Files<br>Offline Store]
+    D --> E["feast apply<br>(Registry)"]
+    E --> F["feast materialize<br>(SQLite Online Store)"]
+
+    D -.->|Batch Df| G[Training Pipeline<br>Historical Features]
+    F -.->|Low Latency| H[Prediction API<br>Online Features]
+```
 
 ---
 
@@ -60,23 +79,28 @@ datathon/
 │   ├── core/
 │   │   └── config.py          # Configurações centrais
 │   ├── ml/
-│   │   ├── preprocessing.py   # Pré-processamento de dados
+│   │   ├── preprocessing.py   # Pré-processamento
 │   │   ├── feature_engineering.py  # Engenharia de features
 │   │   ├── train.py           # Pipeline de treinamento
-│   │   ├── evaluate.py        # Métricas, CV e Learning Curves
-│   │   └── predict.py         # Lógica de predição
+│   │   ├── evaluate.py        # Métricas e Avaliação
+│   │   └── predict.py         # Predição
 │   ├── monitoring/
 │   │   └── drift.py           # Detecção de data drift
-│   ├── utils/
-│   │   └── helpers.py         # Utilitários (logging)
-│   └── main.py                # Entrada da aplicação FastAPI
+│   └── main.py                # Entrada da aplicação
+├── feature_store/             # Feast Feature Store
+│   ├── data/                  # SQLite DBs e .parquet
+│   ├── data_sources.py        # Fontes de dados Parquet
+│   ├── entities.py            # Entidade Aluno
+│   ├── feature_store_manager.py # Interface do Feast
+│   ├── feature_store.yaml     # Config do Feast
+│   └── features.py            # 8 Feature Views
+├── scripts/
+│   └── materialize_features.py # Script de materialização
 ├── data/                       # Dataset PEDE 2024
-├── models/                     # Modelos serializados + learning_curves.png
-├── tests/                      # Testes unitários (105 testes)
+├── models/                     # Modelos serializados
+├── tests/                      # Testes unitários (126 testes)
 ├── train_pipeline.py           # Script CLI de treinamento
-├── Dockerfile
-├── docker-compose.yml
-└── requirements.txt
+└── docker-compose.yml
 ```
 
 ---
@@ -100,23 +124,29 @@ python -m venv venv
 pip install -r requirements.txt
 ```
 
-### 2. Treinar o Modelo
+### 2. Inicializar o Feature Store
+
+Antes de treinar ou usar a API, popule o Feature Store:
 
 ```bash
-# Treinamento rápido (sem otimização de hiperparâmetros)
-python train_pipeline.py --no-optimize
+python scripts/materialize_features.py
+```
+Isso irá criar os arquivos Parquet (offline store) e popular o SQLite (online store).
 
-# Treinamento completo (com RandomizedSearchCV)
-python train_pipeline.py
+### 3. Treinar o Modelo
 
-# Sem a feature IAN (evitar data leakage — já é o padrão)
+```bash
+# Treinamento usando as features salvas no Feature Store
+python train_pipeline.py --use-feature-store
+
+# Treinamento completo (com otimização e Feature Store)
+python train_pipeline.py --use-feature-store
+
+# Sem a feature IAN (já é o padrão)
 python train_pipeline.py --no-ian
-
-# Pular CV e/ou learning curves para treino mais rápido
-python train_pipeline.py --no-optimize --skip-cv --skip-learning-curves
 ```
 
-### 3. Iniciar a API
+### 4. Iniciar a API
 
 ```bash
 python -m uvicorn app.main:app --host 127.0.0.1 --port 8000

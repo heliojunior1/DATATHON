@@ -1,0 +1,108 @@
+
+~
+^
+aluno<Aluno da AssociaÃ§Ã£o Passos MÃ¡gicos, identificado pelo RA."aluno_idJdatathon_pede
+ôãáÌßÿ²ôãáÌßÿ²
+D
+$
+__dummy"
+__dummy_idJdatathon_pede
+ôãáÌßÿ²ôãáÌßÿ²1"$e55f9ba2-6f6e-4811-9676-089705f925b0*õãáÌØÑÕ42Æ
+‡
+indicadores_pededatathon_pedealuno"
+IAA"
+IDA"
+INDE_22"
+IPS"
+IAN"
+IPV"
+IEG*
+categoryindicadores*
+ownerdatathon-team2€ç„:Ñevent_timestampZOMC:\Users\junio\Documents\Datathon\feature_store\data\indicadores_pede.parquetŠ1feast.infra.offline_stores.file_source.FileSource¢indicadores_pede_source’óãáÌðíÆ¯"ôãáÌÀ³µ²@b
+aluno_id:
+ôãáÌÀ³µ²ôãáÌ öªŒ
+Ä¨Ü½ØÿýäÄáÌØÿýä2Ð
+‘
+demograficasdatathon_pedealuno"
+Escola_encoded"
+
+Anos_na_PM"
+Idade_22"
+Genero_encoded"
+Fase_encoded*
+categorydemograficas*
+ownerdatathon-team2€ç„:Éevent_timestampZKIC:\Users\junio\Documents\Datathon\feature_store\data\demograficas.parquetŠ1feast.infra.offline_stores.file_source.FileSource¢demograficas_source’óãáÌðíÆ¯"ôãáÌÀ³µ²@b
+aluno_id:
+ôãáÌÀÁÚ²ôãáÌ¸Ñž¯
+Ä¨Ü½ØÿýäÄáÌØÿýä2ˆ
+É
+notasdatathon_pedealuno"
+Tem_nota_ingles"
+
+Portug"	
+Matem*
+categorynotas*
+ownerdatathon-team2€ç„:»event_timestampZDBC:\Users\junio\Documents\Datathon\feature_store\data\notas.parquetŠ1feast.infra.offline_stores.file_source.FileSource¢notas_source’óãáÌðíÆ¯"ôãáÌÀ–•²@b
+aluno_id:
+ôãáÌÀÁÚ²ôãáÌðÁ¼Ó
+Ä¨Ü½ØÿýäÄáÌØÿýä2¢
+ã
+evolucao_pedrasdatathon_pedealuno"
+Evolucao_pedra_20_22"
+Pedra_22_encoded"
+tinha_pedra_21"
+Evolucao_pedra_21_22"
+Pedra_21_encoded"
+Pedra_20_encoded"
+tinha_pedra_20*
+categoryevolucao_pedras*
+ownerdatathon-team2€ç„:Ïevent_timestampZNLC:\Users\junio\Documents\Datathon\feature_store\data\evolucao_pedras.parquetŠ1feast.infra.offline_stores.file_source.FileSource¢evolucao_pedras_source’óãáÌðíÆ¯"ôãáÌÀ³µ²@b
+aluno_id:
+ôãáÌÀÁÚ²ôãáÌ êÕü
+Ä¨Ü½ØÿýäÄáÌØÿýä2Ë
+Œ
+flagsdatathon_pedealuno"
+Destaque_IPV_flag"
+Ponto_virada_flag"
+Destaque_IDA_flag"
+Indicado_flag"
+Destaque_IEG_flag*
+categoryflags*
+ownerdatathon-team2€ç„:»event_timestampZDBC:\Users\junio\Documents\Datathon\feature_store\data\flags.parquetŠ1feast.infra.offline_stores.file_source.FileSource¢flags_source’óãáÌðíÆ¯"ôãáÌàê³°@b
+aluno_id:
+ôãáÌßÿ²ôãáÌàñþ¬
+Ä¨Ü½ØÿýäÄáÌØÿýä2ž
+ß
+avaliadoresdatathon_pedealuno"
+Rec_av2_encoded"
+Rec_av1_encoded*
+categoryavaliadores*
+ownerdatathon-team2€ç„:Çevent_timestampZJHC:\Users\junio\Documents\Datathon\feature_store\data\avaliadores.parquetŠ1feast.infra.offline_stores.file_source.FileSource¢avaliadores_source’óãáÌðíÆ¯"ôãáÌÀ–•²@b
+aluno_id:
+ôãáÌßÿ²ôãáÌð²Ë
+Ä¨Ü½ØÿýäÄáÌØÿýä2©
+ë
+rankingsdatathon_pedealuno"
+Cf"
+tem_ranking_ct"
+N_Av"
+tem_ranking_cf"
+Ct*
+categoryrankings*
+ownerdatathon-team2€ç„:Áevent_timestampZGEC:\Users\junio\Documents\Datathon\feature_store\data\rankings.parquetŠ1feast.infra.offline_stores.file_source.FileSource¢rankings_source’óãáÌð­…°"ôãáÌÀ³µ²@b
+aluno_id9
+ôãáÌßÿ²õãáÌ€ôÁ
+Ä¨Ü½ØÿýäÄáÌØÿýä2™
+Û
+	derivadasdatathon_pedealuno"
+Ratio_IDA_IEG"
+Variancia_indicadores*
+category	derivadas*
+ownerdatathon-team2€ç„:Ãevent_timestampZHFC:\Users\junio\Documents\Datathon\feature_store\data\derivadas.parquetŠ1feast.infra.offline_stores.file_source.FileSource¢derivadas_source’óãáÌð­…°"ôãáÌÀ³µ²@b
+aluno_id9
+ôãáÌßÿ²õãáÌØÑÕ4
+Ä¨Ü½ØÿýäÄáÌØÿýäbËevent_timestampZDBC:\Users\junio\Documents\Datathon\feature_store\data\flags.parquetŠ1feast.infra.offline_stores.file_source.FileSource¢flags_sourceªdatathon_pede’óãáÌðíÆ¯"ôãáÌàê³°bËevent_timestampZDBC:\Users\junio\Documents\Datathon\feature_store\data\notas.parquetŠ1feast.infra.offline_stores.file_source.FileSource¢notas_sourceªdatathon_pede’óãáÌðíÆ¯"ôãáÌÀ–•²b×event_timestampZJHC:\Users\junio\Documents\Datathon\feature_store\data\avaliadores.parquetŠ1feast.infra.offline_stores.file_source.FileSource¢avaliadores_sourceªdatathon_pede’óãáÌðíÆ¯"ôãáÌÀ–•²bßevent_timestampZNLC:\Users\junio\Documents\Datathon\feature_store\data\evolucao_pedras.parquetŠ1feast.infra.offline_stores.file_source.FileSource¢evolucao_pedras_sourceªdatathon_pede’óãáÌðíÆ¯"ôãáÌÀ³µ²bÓevent_timestampZHFC:\Users\junio\Documents\Datathon\feature_store\data\derivadas.parquetŠ1feast.infra.offline_stores.file_source.FileSource¢derivadas_sourceªdatathon_pede’óãáÌð­…°"ôãáÌÀ³µ²bÑevent_timestampZGEC:\Users\junio\Documents\Datathon\feature_store\data\rankings.parquetŠ1feast.infra.offline_stores.file_source.FileSource¢rankings_sourceªdatathon_pede’óãáÌð­…°"ôãáÌÀ³µ²báevent_timestampZOMC:\Users\junio\Documents\Datathon\feature_store\data\indicadores_pede.parquetŠ1feast.infra.offline_stores.file_source.FileSource¢indicadores_pede_sourceªdatathon_pede’óãáÌðíÆ¯"ôãáÌÀ³µ²bÙevent_timestampZKIC:\Users\junio\Documents\Datathon\feature_store\data\demograficas.parquetŠ1feast.infra.offline_stores.file_source.FileSource¢demograficas_sourceªdatathon_pede’óãáÌðíÆ¯"ôãáÌÀ³µ²z5
+datathon_pede$03c4afec-dbc9-44f1-af50-b0b364397ac2Š/
+
+datathon_pede
+ôãáÌ¨óÒ°ôãáÌ¨óÒ°

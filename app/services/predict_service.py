@@ -4,6 +4,7 @@ Módulo de predição.
 Carrega modelos treinados e faz previsões para novos dados.
 Suporta múltiplos modelos via model_storage.
 """
+import time
 import pandas as pd
 import numpy as np
 from pathlib import Path
@@ -273,8 +274,10 @@ def predict(input_data: dict, model_id: str | None = None) -> dict:
 
     X = prepare_input_features(input_data, feature_names)
 
+    t0 = time.perf_counter()
     prediction = int(model.predict(X)[0])
     probability = float(model.predict_proba(X)[0][1])
+    latency_ms = round((time.perf_counter() - t0) * 1000, 2)
 
     # Determinar nível de risco
     if probability >= 0.8:
@@ -299,6 +302,7 @@ def predict(input_data: dict, model_id: str | None = None) -> dict:
         "label": "Em Risco de Defasagem" if prediction == 1 else "Sem Risco",
         "top_factors": top_factors,
         "model_id": metadata.get("model_id"),
+        "latency_ms": latency_ms,
     }
 
 

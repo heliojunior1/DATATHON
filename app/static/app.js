@@ -383,17 +383,51 @@ function showBatchResults(data) {
 // ===== MONITORING =====
 async function loadMonitoring() {
     try {
-        const [drift, stats] = await Promise.all([api('/monitoring/drift'), api('/monitoring/stats')]);
+        const [drift, stats, latency, throughput, missing, errors] = await Promise.all([
+            api('/monitoring/drift').catch(() => ({})),
+            api('/monitoring/stats').catch(() => ({})),
+            api('/monitoring/latency').catch(() => ({})),
+            api('/monitoring/throughput').catch(() => ({})),
+            api('/monitoring/missing').catch(() => ({})),
+            api('/monitoring/errors').catch(() => ({})),
+        ]);
 
+        // Cards de predições
         document.getElementById('mon-total').textContent = stats.total_predictions || 0;
         document.getElementById('mon-risk-rate').textContent = ((stats.risk_rate || 0) * 100).toFixed(1) + '%';
         document.getElementById('mon-avg-prob').textContent = ((stats.avg_probability || 0) * 100).toFixed(1) + '%';
 
+        // Cards de latência
+        const latSection = document.getElementById('mon-latency-section');
+        const latPlaceholder = document.getElementById('mon-latency-placeholder');
+        if (latency.count > 0) {
+            if (latSection) latSection.style.display = 'grid';
+            if (latPlaceholder) latPlaceholder.style.display = 'none';
+            document.getElementById('mon-lat-avg').textContent = (latency.avg_ms || 0).toFixed(1) + ' ms';
+            document.getElementById('mon-lat-p95').textContent = (latency.p95_ms || 0).toFixed(1) + ' ms';
+            document.getElementById('mon-lat-p99').textContent = (latency.p99_ms || 0).toFixed(1) + ' ms';
+        } else {
+            if (latSection) latSection.style.display = 'none';
+            if (latPlaceholder) latPlaceholder.style.display = 'block';
+        }
+
+        // Cards de throughput e error rate
+        const tpEl = document.getElementById('mon-throughput');
+        if (tpEl) tpEl.textContent = (throughput.avg_per_minute || 0).toFixed(2) + ' req/min';
+        const erEl = document.getElementById('mon-error-rate');
+        if (erEl) erEl.textContent = ((errors.error_rate || 0) * 100).toFixed(2) + '%';
+        const e4El = document.getElementById('mon-errors-4xx');
+        if (e4El) e4El.textContent = errors.errors_4xx || 0;
+        const e5El = document.getElementById('mon-errors-5xx');
+        if (e5El) e5El.textContent = errors.errors_5xx || 0;
+
+        // Status de drift geral
         const statusMap = { 'OK': 'drift-ok', 'WARNING': 'drift-warn', 'DRIFT_DETECTED': 'drift-alert', 'NO_DATA': 'drift-warn', 'NO_REFERENCE': 'drift-warn' };
         const statusEl = document.getElementById('mon-drift-status');
         statusEl.className = `drift-status ${statusMap[drift.status] || 'drift-warn'}`;
         statusEl.textContent = drift.status || 'SEM DADOS';
 
+        // Tabela de drift por feature (com PSI e KL Divergence)
         const container = document.getElementById('drift-details');
         const features = drift.details || {};
         const keys = Object.keys(features);
@@ -401,14 +435,44 @@ async function loadMonitoring() {
             container.innerHTML = '<p style="color:var(--text2);text-align:center;padding:20px">Faça predições para gerar dados de monitoramento</p>';
         } else {
             container.innerHTML = `<div class="table-wrap"><table>
-        <thead><tr><th>Feature</th><th>Status</th><th>P-Value</th><th>Mean Shift</th></tr></thead>
+        <thead><tr><th>Feature</th><th>Status KS</th><th>KS P-Value</th><th>Mean Shift</th><th>PSI</th><th>PSI Status</th><th>KL Div.</th></tr></thead>
         <tbody>${keys.map(k => {
                 const f = features[k];
                 const sc = f.drift_status === 'OK' ? 'drift-ok' : f.drift_status === 'WARNING' ? 'drift-warn' : 'drift-alert';
-                return `<tr><td>${k}</td><td><span class="drift-status ${sc}">${f.drift_status}</span></td><td>${f.p_value?.toFixed(4) ?? '—'}</td><td>${f.mean_shift?.toFixed(4) ?? '—'}</td></tr>`;
+                const psiSc = (f.psi_status || 'OK') === 'OK' ? 'drift-ok' : f.psi_status === 'WARNING' ? 'drift-warn' : 'drift-alert';
+                return `<tr>
+                    <td>${k}</td>
+                    <td><span class="drift-status ${sc}">${f.drift_status}</span></td>
+                    <td>${f.ks_pvalue != null ? f.ks_pvalue.toFixed(4) : '—'}</td>
+                    <td>${f.mean_shift != null ? f.mean_shift.toFixed(4) : '—'}</td>
+                    <td>${f.psi != null ? f.psi.toFixed(4) : '—'}</td>
+                    <td><span class="drift-status ${psiSc}">${f.psi_status || '—'}</span></td>
+                    <td>${f.kl_divergence != null ? f.kl_divergence.toFixed(4) : '—'}</td>
+                </tr>`;
             }).join('')}</tbody>
       </table></div>`;
         }
+
+        // Seção de Missing Values
+        const missingContainer = document.getElementById('missing-details');
+        if (missingContainer) {
+            const missingKeys = Object.keys(missing);
+            if (missingKeys.length === 0) {
+                missingContainer.innerHTML = '<p style="color:var(--text2);text-align:center;padding:20px">Faça predições para gerar dados de ausência</p>';
+            } else {
+                const sorted = missingKeys.sort((a, b) => (missing[b].missing_rate || 0) - (missing[a].missing_rate || 0));
+                missingContainer.innerHTML = `<div class="table-wrap"><table>
+                <thead><tr><th>Feature</th><th>Total</th><th>Ausentes</th><th>Taxa (%)</th></tr></thead>
+                <tbody>${sorted.map(k => {
+                    const m = missing[k];
+                    const rate = ((m.missing_rate || 0) * 100).toFixed(1);
+                    const style = m.missing_rate > 0.2 ? 'color:var(--red);font-weight:600' : m.missing_rate > 0.05 ? 'color:var(--amber)' : '';
+                    return `<tr><td>${k}</td><td>${m.total}</td><td>${m.missing}</td><td style="${style}">${rate}%</td></tr>`;
+                }).join('')}</tbody>
+                </table></div>`;
+            }
+        }
+
     } catch (e) { console.error('Monitoring error:', e); }
 }
 

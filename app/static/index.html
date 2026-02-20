@@ -335,6 +335,8 @@
       <div id="page-monitoring" class="page">
         <h1 class="page-title">Monitoramento</h1>
         <p class="page-subtitle">Acompanhe drift de dados e estatísticas de predição em tempo real</p>
+
+        <!-- Predições -->
         <div class="metrics-grid">
           <div class="metric-card blue">
             <div class="metric-label">Predições</div>
@@ -354,10 +356,62 @@
                 class="drift-status drift-warn">—</span></div>
           </div>
         </div>
+
+        <!-- Latência de Inferência -->
         <div class="card">
-          <div class="card-title"><span class="card-icon">🔬</span>Drift por Feature</div>
+          <div class="card-title"><span class="card-icon">⚡</span>Latência de Inferência</div>
+          <div id="mon-latency-section" class="metrics-grid" style="display:none">
+            <div class="metric-card green">
+              <div class="metric-label">Latência Média</div>
+              <div class="metric-value" id="mon-lat-avg" style="font-size:22px">—</div>
+            </div>
+            <div class="metric-card amber">
+              <div class="metric-label">P95</div>
+              <div class="metric-value" id="mon-lat-p95" style="font-size:22px">—</div>
+            </div>
+            <div class="metric-card red">
+              <div class="metric-label">P99</div>
+              <div class="metric-value" id="mon-lat-p99" style="font-size:22px">—</div>
+            </div>
+          </div>
+          <p id="mon-latency-placeholder" style="color:var(--text2);padding:12px 0">Faça predições para medir latência</p>
+        </div>
+
+        <!-- Throughput & Error Rate -->
+        <div class="card">
+          <div class="card-title"><span class="card-icon">📊</span>Operacional</div>
+          <div id="mon-ops-section" class="metrics-grid">
+            <div class="metric-card blue">
+              <div class="metric-label">Throughput (60 min)</div>
+              <div class="metric-value" id="mon-throughput" style="font-size:20px">—</div>
+            </div>
+            <div class="metric-card red">
+              <div class="metric-label">Error Rate</div>
+              <div class="metric-value" id="mon-error-rate" style="font-size:20px">—</div>
+            </div>
+            <div class="metric-card amber">
+              <div class="metric-label">Erros 4xx</div>
+              <div class="metric-value" id="mon-errors-4xx" style="font-size:22px">0</div>
+            </div>
+            <div class="metric-card purple">
+              <div class="metric-label">Erros 5xx</div>
+              <div class="metric-value" id="mon-errors-5xx" style="font-size:22px">0</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Drift por Feature -->
+        <div class="card">
+          <div class="card-title"><span class="card-icon">🔬</span>Drift por Feature (KS-test · PSI · KL Divergence)</div>
           <div id="drift-details"></div>
         </div>
+
+        <!-- Missing Values -->
+        <div class="card">
+          <div class="card-title"><span class="card-icon">🕳️</span>Taxa de Dados Ausentes por Feature</div>
+          <div id="missing-details"></div>
+        </div>
+
         <div class="btn-group">
           <button class="btn btn-secondary" onclick="loadMonitoring()">🔄 Atualizar</button>
         </div>

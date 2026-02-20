@@ -68,6 +68,7 @@ class PredictionResponse(BaseModel):
     label: str = Field(..., description="Label descritivo: 'Em Risco de Defasagem' ou 'Sem Risco'")
     top_factors: list[dict] = Field(default_factory=list, description="Top 5 features mais importantes")
     model_id: Optional[str] = Field(None, description="ID do modelo usado na predição")
+    latency_ms: Optional[float] = Field(None, description="Latência de inferência em milissegundos")
 
 
 class BatchPredictionRequest(BaseModel):

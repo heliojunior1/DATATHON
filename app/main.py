@@ -7,10 +7,10 @@ import logging
 from pathlib import Path
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 
 from app.routers.prediction import router as prediction_router
 from app.routers.training import router as training_router
@@ -22,6 +22,9 @@ from app.utils.helpers import setup_logger
 logger = setup_logger(__name__, log_file="api.log")
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
+
+# Contadores de requisições para monitoramento de error rate
+_request_stats: dict = {"total": 0, "errors_4xx": 0, "errors_5xx": 0}
 
 
 @asynccontextmanager
@@ -80,6 +83,31 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def count_request_errors(request: Request, call_next):
+    """Middleware para contagem de requisições e erros 4xx/5xx."""
+    response = await call_next(request)
+    _request_stats["total"] += 1
+    if 400 <= response.status_code < 500:
+        _request_stats["errors_4xx"] += 1
+    elif response.status_code >= 500:
+        _request_stats["errors_5xx"] += 1
+    return response
+
+
+@app.get("/monitoring/errors", tags=["Monitoramento"])
+async def error_stats():
+    """Retorna contagem de requisições e erros 4xx/5xx desde o último restart."""
+    total = _request_stats["total"]
+    errors = _request_stats["errors_4xx"] + _request_stats["errors_5xx"]
+    return {
+        "total_requests": total,
+        "errors_4xx": _request_stats["errors_4xx"],
+        "errors_5xx": _request_stats["errors_5xx"],
+        "error_rate": round(errors / total, 4) if total > 0 else 0.0,
+    }
 
 # Registrar routers da API
 app.include_router(prediction_router)

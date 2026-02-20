@@ -62,12 +62,13 @@ async def predict_student(student: StudentInput, model_id: str | None = None):
         result = predict(input_data, model_id=model_id)
 
         # Registrar para monitoramento
-        log_prediction(input_data, result)
+        log_prediction(input_data, result, latency_ms=result.get("latency_ms"))
 
         logger.info(
             f"Predição realizada: risco={result['prediction']}, "
             f"prob={result['probability']:.4f}, "
             f"nível={result['risk_level']}, "
+            f"latência={result.get('latency_ms')}ms, "
             f"modelo={result.get('model_id')}"
         )
 

@@ -61,15 +61,17 @@ async def predict_student(student: StudentInput, model_id: str | None = None):
         input_data = student.model_dump(by_alias=True)
         result = predict(input_data, model_id=model_id)
 
-        # Registrar para monitoramento
-        log_prediction(input_data, result, latency_ms=result.get("latency_ms"))
+        # Registrar para monitoramento — retorna prediction_id para feedback loop
+        prediction_id = log_prediction(input_data, result, latency_ms=result.get("latency_ms"))
+        result["prediction_id"] = prediction_id
 
         logger.info(
             f"Predição realizada: risco={result['prediction']}, "
             f"prob={result['probability']:.4f}, "
             f"nível={result['risk_level']}, "
             f"latência={result.get('latency_ms')}ms, "
-            f"modelo={result.get('model_id')}"
+            f"modelo={result.get('model_id')}, "
+            f"id={prediction_id}"
         )
 
         return PredictionResponse(**result)
@@ -95,12 +97,13 @@ async def predict_students_batch(request: BatchPredictionRequest):
         input_list = [s.model_dump(by_alias=True) for s in request.students]
         results = predict_batch(input_list, model_id=request.model_id)
 
+        # Registrar para monitoramento — adicionar prediction_id a cada resultado
+        for inp, result in zip(input_list, results):
+            prediction_id = log_prediction(inp, result)
+            result["prediction_id"] = prediction_id
+
         predictions = [PredictionResponse(**r) for r in results]
         risk_count = sum(1 for r in results if r["prediction"] == 1)
-
-        # Registrar para monitoramento
-        for inp, result in zip(input_list, results):
-            log_prediction(inp, result)
 
         return BatchPredictionResponse(
             predictions=predictions,

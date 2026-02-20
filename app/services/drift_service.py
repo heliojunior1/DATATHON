@@ -4,6 +4,7 @@ Módulo de monitoramento de data drift.
 Compara distribuições de features entre dados de treinamento (referência)
 e dados de produção para detectar drift.
 """
+import uuid
 import threading
 import numpy as np
 import pandas as pd
@@ -26,7 +27,7 @@ _missing_log: dict[str, dict] = {}
 _lock = threading.Lock()
 
 
-def log_prediction(input_features: dict, prediction: dict, latency_ms: float | None = None) -> None:
+def log_prediction(input_features: dict, prediction: dict, latency_ms: float | None = None) -> str:
     """
     Registra uma predição para monitoramento posterior.
 
@@ -34,15 +35,23 @@ def log_prediction(input_features: dict, prediction: dict, latency_ms: float | N
         input_features: Features de entrada.
         prediction: Resultado da predição.
         latency_ms: Latência de inferência em milissegundos.
+
+    Returns:
+        prediction_id: UUID único gerado para esta predição.
     """
     global _prediction_log, _missing_log
 
+    prediction_id = str(uuid.uuid4())
+
     entry = {
+        "prediction_id": prediction_id,
         "timestamp": datetime.now().isoformat(),
         "features": input_features,
         "prediction": prediction.get("prediction"),
         "probability": prediction.get("probability"),
         "latency_ms": latency_ms,
+        "actual_outcome": None,
+        "feedback_timestamp": None,
     }
 
     with _lock:
@@ -60,6 +69,8 @@ def log_prediction(input_features: dict, prediction: dict, latency_ms: float | N
         # Limitar tamanho do log
         if len(_prediction_log) > MAX_LOG_SIZE:
             _prediction_log = _prediction_log[-MAX_LOG_SIZE:]
+
+    return prediction_id
 
 
 def get_prediction_log() -> list[dict]:
@@ -347,4 +358,169 @@ def check_all_drift() -> dict:
         "warnings": warning_count,
         "details": results,
         "prediction_stats": get_prediction_stats(),
+    }
+
+
+# ── Concept Drift — Feedback Loop ────────────────────────────────────────────
+
+
+def _get_risk_level(probability: float) -> str:
+    """Converte probabilidade em nível de risco."""
+    if probability >= 0.8:
+        return "Muito Alto"
+    elif probability >= 0.6:
+        return "Alto"
+    elif probability >= 0.4:
+        return "Moderado"
+    elif probability >= 0.2:
+        return "Baixo"
+    return "Muito Baixo"
+
+
+def submit_feedback(prediction_id: str, actual_outcome: int) -> bool:
+    """
+    Registra o outcome real de uma predição para cálculo de concept drift.
+
+    Args:
+        prediction_id: UUID da predição a atualizar.
+        actual_outcome: 0 = sem risco real, 1 = ficou defasado.
+
+    Returns:
+        True se encontrou e atualizou, False se prediction_id não existe.
+    """
+    with _lock:
+        for entry in _prediction_log:
+            if entry.get("prediction_id") == prediction_id:
+                entry["actual_outcome"] = actual_outcome
+                entry["feedback_timestamp"] = datetime.now().isoformat()
+                return True
+    return False
+
+
+def get_predictions_for_feedback(limit: int = 50) -> list[dict]:
+    """
+    Retorna as predições mais recentes para confirmação de outcome.
+
+    Args:
+        limit: Número máximo de predições a retornar.
+
+    Returns:
+        Lista de predições com campos básicos, ordenada da mais recente para a mais antiga.
+    """
+    with _lock:
+        recent = list(reversed(_prediction_log[-limit:]))
+
+    return [
+        {
+            "prediction_id": e["prediction_id"],
+            "timestamp": e["timestamp"],
+            "prediction": e["prediction"],
+            "probability": round(e["probability"], 4) if e["probability"] is not None else None,
+            "risk_level": _get_risk_level(e["probability"]) if e["probability"] is not None else "—",
+            "actual_outcome": e.get("actual_outcome"),
+            "feedback_timestamp": e.get("feedback_timestamp"),
+        }
+        for e in recent
+    ]
+
+
+def get_concept_drift_stats(window_size: int = 20) -> dict:
+    """
+    Detecta concept drift comparando F1/Recall entre janelas de predições confirmadas.
+
+    Args:
+        window_size: Número de predições por janela.
+
+    Returns:
+        Dicionário com status (OK/WARNING/DRIFT_DETECTED), métricas por janela e delta de F1.
+    """
+    with _lock:
+        confirmed = [e for e in _prediction_log if e.get("actual_outcome") is not None]
+
+    if not confirmed:
+        return {
+            "status": "NO_DATA",
+            "confirmed_count": 0,
+            "windows": [],
+            "latest_f1": None,
+            "baseline_f1": None,
+            "f1_delta": None,
+            "alert_message": None,
+            "message": "Nenhum feedback confirmado ainda. Confirme outcomes na aba Concept Drift.",
+        }
+
+    # Agrupar em janelas de window_size predições
+    windows = []
+    for i in range(0, len(confirmed), window_size):
+        chunk = confirmed[i:i + window_size]
+        if len(chunk) < 5:
+            continue
+
+        y_true = [e["actual_outcome"] for e in chunk]
+        y_pred = [e["prediction"] for e in chunk]
+
+        tp = sum(1 for t, p in zip(y_true, y_pred) if t == 1 and p == 1)
+        fp = sum(1 for t, p in zip(y_true, y_pred) if t == 0 and p == 1)
+        fn = sum(1 for t, p in zip(y_true, y_pred) if t == 1 and p == 0)
+        tn = sum(1 for t, p in zip(y_true, y_pred) if t == 0 and p == 0)
+
+        precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
+        recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
+        f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0.0
+        accuracy = (tp + tn) / len(chunk)
+
+        windows.append({
+            "label": f"W{len(windows) + 1}",
+            "n": len(chunk),
+            "f1": round(f1, 4),
+            "recall": round(recall, 4),
+            "precision": round(precision, 4),
+            "accuracy": round(accuracy, 4),
+            "start_time": chunk[0]["timestamp"],
+            "end_time": chunk[-1]["timestamp"],
+        })
+
+    if not windows:
+        return {
+            "status": "INSUFFICIENT_DATA",
+            "confirmed_count": len(confirmed),
+            "windows": [],
+            "latest_f1": None,
+            "baseline_f1": None,
+            "f1_delta": None,
+            "alert_message": None,
+            "message": f"Necessário pelo menos 5 feedbacks confirmados (atual: {len(confirmed)}).",
+        }
+
+    latest_f1 = windows[-1]["f1"]
+
+    if len(windows) >= 2:
+        baseline_f1 = float(np.mean([w["f1"] for w in windows[:-1]]))
+    else:
+        baseline_f1 = latest_f1
+
+    f1_delta = latest_f1 - baseline_f1
+
+    if f1_delta > -0.05:
+        status = "OK"
+        alert_message = None
+    elif f1_delta > -0.10:
+        status = "WARNING"
+        alert_message = f"F1 caiu {abs(f1_delta) * 100:.1f}% na última janela (atenção recomendada)"
+    else:
+        status = "DRIFT_DETECTED"
+        alert_message = (
+            f"Concept drift detectado! F1 caiu {abs(f1_delta) * 100:.1f}% "
+            "na última janela (retreinamento recomendado)"
+        )
+
+    return {
+        "status": status,
+        "confirmed_count": len(confirmed),
+        "windows": windows,
+        "latest_f1": round(latest_f1, 4),
+        "baseline_f1": round(baseline_f1, 4),
+        "f1_delta": round(f1_delta, 4),
+        "alert_message": alert_message,
+        "message": None,
     }

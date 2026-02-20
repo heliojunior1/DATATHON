@@ -69,6 +69,7 @@ class PredictionResponse(BaseModel):
     top_factors: list[dict] = Field(default_factory=list, description="Top 5 features mais importantes")
     model_id: Optional[str] = Field(None, description="ID do modelo usado na predição")
     latency_ms: Optional[float] = Field(None, description="Latência de inferência em milissegundos")
+    prediction_id: Optional[str] = Field(None, description="UUID da predição para feedback de concept drift")
 
 
 class BatchPredictionRequest(BaseModel):
@@ -187,3 +188,19 @@ class FeatureStoreMaterializeResponse(BaseModel):
     message: str
     parquet_files: int = 0
     feature_views: int = 0
+
+
+# ── Schemas para Concept Drift — Feedback Loop ───────────────────────────────
+
+
+class FeedbackRequest(BaseModel):
+    """Request para registrar o outcome real de uma predição."""
+    prediction_id: str = Field(..., description="UUID da predição")
+    actual_outcome: int = Field(..., ge=0, le=1, description="0 = Sem risco real, 1 = Ficou defasado")
+
+
+class FeedbackResponse(BaseModel):
+    """Resposta do registro de feedback."""
+    success: bool
+    message: str
+    prediction_id: str

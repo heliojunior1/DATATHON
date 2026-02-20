@@ -7,6 +7,7 @@
   <title>Passos Mágicos — Predição de Defasagem</title>
   <meta name="description" content="Dashboard de ML para previsão de risco de defasagem escolar">
   <link rel="stylesheet" href="/static/styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 
 <body>
@@ -25,6 +26,7 @@
         <li><a onclick="navigate('predict')"><span class="nav-icon">🔍</span>Predição</a></li>
         <li><a onclick="navigate('batch')"><span class="nav-icon">📋</span>Predição em Lote</a></li>
         <li><a onclick="navigate('monitoring')"><span class="nav-icon">📈</span>Monitoramento</a></li>
+        <li><a onclick="navigate('feedback')"><span class="nav-icon">🧪</span>Concept Drift</a></li>
       </ul>
       <div class="sidebar-footer">v2.0.0 • Multi-Model</div>
     </aside>
@@ -414,6 +416,65 @@
 
         <div class="btn-group">
           <button class="btn btn-secondary" onclick="loadMonitoring()">🔄 Atualizar</button>
+        </div>
+      </div>
+
+      <!-- ===== CONCEPT DRIFT ===== -->
+      <div id="page-feedback" class="page">
+        <h1 class="page-title">Concept Drift — Feedback Loop</h1>
+        <p class="page-subtitle">Confirme os outcomes reais dos alunos para detectar degradação do modelo ao longo do tempo</p>
+
+        <!-- Status Cards -->
+        <div class="metrics-grid">
+          <div class="metric-card blue">
+            <div class="metric-label">Feedbacks Confirmados</div>
+            <div class="metric-value" id="cd-confirmed">0</div>
+          </div>
+          <div class="metric-card green">
+            <div class="metric-label">F1 Baseline</div>
+            <div class="metric-value" id="cd-f1-base">—</div>
+          </div>
+          <div class="metric-card amber">
+            <div class="metric-label">F1 Recente</div>
+            <div class="metric-value" id="cd-f1-recent">—</div>
+          </div>
+          <div class="metric-card purple">
+            <div class="metric-label">Status</div>
+            <div class="metric-value" style="font-size:16px"><span id="cd-status" class="drift-status drift-warn">—</span></div>
+          </div>
+        </div>
+
+        <!-- Alerta de Degradação -->
+        <div id="cd-alert" class="card" style="display:none;border-left:4px solid var(--danger);background:rgba(239,68,68,0.08)">
+          <div style="display:flex;align-items:center;gap:10px">
+            <span style="font-size:24px">⚠️</span>
+            <div>
+              <strong>Degradação de Performance Detectada</strong>
+              <p id="cd-alert-msg" style="margin:4px 0 0;color:var(--text2)"></p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Gráfico de Performance -->
+        <div class="card">
+          <div class="card-title"><span class="card-icon">📈</span>Evolução de Performance por Janela</div>
+          <div id="cd-chart-section" style="display:none">
+            <canvas id="cd-chart" height="100"></canvas>
+          </div>
+          <p id="cd-chart-placeholder" style="color:var(--text2);padding:12px 0">
+            Necessário pelo menos 2 janelas (mín. 10 feedbacks confirmados) para exibir o gráfico.
+          </p>
+        </div>
+
+        <!-- Tabela de Predições para Confirmar -->
+        <div class="card">
+          <div class="card-title">
+            <span class="card-icon">📝</span>Predições Aguardando Confirmação
+            <button class="btn btn-secondary" onclick="loadFeedback()" style="float:right;padding:4px 12px;font-size:13px">🔄 Atualizar</button>
+          </div>
+          <div id="feedback-table">
+            <p style="color:var(--text2);padding:12px 0">Faça predições para que elas apareçam aqui para confirmação.</p>
+          </div>
         </div>
       </div>
     </main>

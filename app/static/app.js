@@ -3,6 +3,7 @@ const API = '';
 // ===== STATE =====
 let _availableFeatures = [];
 let _trainedModels = [];
+let _cdChart = null;
 
 // ===== NAVIGATION =====
 function navigate(page) {
@@ -13,6 +14,7 @@ function navigate(page) {
     if (page === 'dashboard') loadDashboard();
     if (page === 'training') loadTrainingPage();
     if (page === 'monitoring') loadMonitoring();
+    if (page === 'feedback') loadFeedback();
 }
 
 // ===== TOAST =====
@@ -503,6 +505,206 @@ function onModelTypeChange() {
     nIterInput.disabled = noOptimize;
     if (noOptimize) {
         optimizeSelect.value = 'false';
+    }
+}
+
+// ===== CONCEPT DRIFT — FEEDBACK LOOP =====
+
+async function loadFeedback() {
+    try {
+        const [cdData, feedbackData] = await Promise.all([
+            api('/monitoring/concept-drift'),
+            api('/monitoring/feedback?limit=50'),
+        ]);
+        renderConceptDriftStatus(cdData);
+        renderFeedbackTable(feedbackData.predictions || []);
+    } catch (e) {
+        console.error('Erro ao carregar concept drift:', e);
+    }
+}
+
+function renderConceptDriftStatus(data) {
+    // Cards de status
+    document.getElementById('cd-confirmed').textContent = data.confirmed_count ?? 0;
+    document.getElementById('cd-f1-base').textContent =
+        data.baseline_f1 != null ? (data.baseline_f1 * 100).toFixed(1) + '%' : '—';
+    document.getElementById('cd-f1-recent').textContent =
+        data.latest_f1 != null ? (data.latest_f1 * 100).toFixed(1) + '%' : '—';
+
+    const statusEl = document.getElementById('cd-status');
+    const statusMap = {
+        'OK': { label: '✅ OK', cls: 'drift-ok' },
+        'WARNING': { label: '⚠️ Warning', cls: 'drift-warn' },
+        'DRIFT_DETECTED': { label: '🚨 Drift!', cls: 'drift-critical' },
+        'NO_DATA': { label: '— Sem dados', cls: 'drift-warn' },
+        'INSUFFICIENT_DATA': { label: '— Aguardando', cls: 'drift-warn' },
+    };
+    const st = statusMap[data.status] || { label: data.status, cls: 'drift-warn' };
+    statusEl.textContent = st.label;
+    statusEl.className = `drift-status ${st.cls}`;
+
+    // Alerta de degradação
+    const alertEl = document.getElementById('cd-alert');
+    const alertMsg = document.getElementById('cd-alert-msg');
+    if (data.alert_message) {
+        alertMsg.textContent = data.alert_message;
+        alertEl.style.display = '';
+    } else {
+        alertEl.style.display = 'none';
+    }
+
+    // Gráfico
+    const windows = data.windows || [];
+    const chartSection = document.getElementById('cd-chart-section');
+    const placeholder = document.getElementById('cd-chart-placeholder');
+
+    if (windows.length >= 2) {
+        chartSection.style.display = '';
+        placeholder.style.display = 'none';
+        renderConceptDriftChart(windows);
+    } else {
+        chartSection.style.display = 'none';
+        placeholder.style.display = '';
+        const needed = data.confirmed_count < 5 ? 5 : 10;
+        placeholder.textContent =
+            `Necessário pelo menos 2 janelas (mín. ${needed} feedbacks confirmados) para exibir o gráfico. Atual: ${data.confirmed_count}.`;
+    }
+}
+
+function renderConceptDriftChart(windows) {
+    const ctx = document.getElementById('cd-chart').getContext('2d');
+    const labels = windows.map(w => `${w.label} (n=${w.n})`);
+    const f1Data = windows.map(w => w.f1);
+    const recallData = windows.map(w => w.recall);
+    const precisionData = windows.map(w => w.precision);
+
+    if (_cdChart) {
+        _cdChart.destroy();
+        _cdChart = null;
+    }
+
+    _cdChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels,
+            datasets: [
+                {
+                    label: 'F1-Score',
+                    data: f1Data,
+                    borderColor: '#3b82f6',
+                    backgroundColor: 'rgba(59,130,246,0.08)',
+                    borderWidth: 2,
+                    pointRadius: 5,
+                    tension: 0.3,
+                    fill: true,
+                },
+                {
+                    label: 'Recall',
+                    data: recallData,
+                    borderColor: '#10b981',
+                    backgroundColor: 'rgba(16,185,129,0.06)',
+                    borderWidth: 2,
+                    pointRadius: 5,
+                    tension: 0.3,
+                },
+                {
+                    label: 'Precision',
+                    data: precisionData,
+                    borderColor: '#f59e0b',
+                    backgroundColor: 'rgba(245,158,11,0.06)',
+                    borderWidth: 2,
+                    pointRadius: 5,
+                    tension: 0.3,
+                    borderDash: [5, 3],
+                },
+            ],
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: { min: 0, max: 1, ticks: { callback: v => (v * 100).toFixed(0) + '%' } },
+            },
+            plugins: {
+                legend: { position: 'top' },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => `${ctx.dataset.label}: ${(ctx.parsed.y * 100).toFixed(1)}%`,
+                    },
+                },
+            },
+        },
+    });
+}
+
+function renderFeedbackTable(predictions) {
+    const container = document.getElementById('feedback-table');
+    if (!predictions.length) {
+        container.innerHTML = '<p style="color:var(--text2);padding:12px 0">Faça predições para que elas apareçam aqui para confirmação.</p>';
+        return;
+    }
+
+    const rows = predictions.map(p => {
+        const ts = new Date(p.timestamp).toLocaleString('pt-BR');
+        const riskBadge = p.prediction === 1
+            ? '<span style="color:#ef4444;font-weight:600">⚠️ Em Risco</span>'
+            : '<span style="color:#10b981;font-weight:600">✅ Sem Risco</span>';
+        const prob = p.probability != null ? (p.probability * 100).toFixed(1) + '%' : '—';
+
+        let outcomeCell;
+        if (p.actual_outcome === 1) {
+            outcomeCell = '<span style="color:#ef4444">✅ Ficou Defasado</span>';
+        } else if (p.actual_outcome === 0) {
+            outcomeCell = '<span style="color:#10b981">✅ Não Defasou</span>';
+        } else {
+            outcomeCell = `
+                <button class="btn btn-secondary" onclick="confirmOutcome('${p.prediction_id}', 1)"
+                    style="padding:3px 8px;font-size:12px;background:#ef444422;color:#ef4444;border-color:#ef4444">
+                    Ficou Defasado
+                </button>
+                <button class="btn btn-secondary" onclick="confirmOutcome('${p.prediction_id}', 0)"
+                    style="padding:3px 8px;font-size:12px;background:#10b98122;color:#10b981;border-color:#10b981;margin-left:4px">
+                    Não Defasou
+                </button>`;
+        }
+
+        return `<tr>
+            <td style="font-size:12px;color:var(--text2)">${ts}</td>
+            <td>${riskBadge}</td>
+            <td>${prob}</td>
+            <td>${p.risk_level}</td>
+            <td>${outcomeCell}</td>
+        </tr>`;
+    }).join('');
+
+    container.innerHTML = `
+        <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:14px">
+            <thead>
+                <tr style="border-bottom:1px solid var(--border)">
+                    <th style="text-align:left;padding:8px 6px;color:var(--text2)">Data/Hora</th>
+                    <th style="text-align:left;padding:8px 6px;color:var(--text2)">Predição</th>
+                    <th style="text-align:left;padding:8px 6px;color:var(--text2)">Probabilidade</th>
+                    <th style="text-align:left;padding:8px 6px;color:var(--text2)">Nível de Risco</th>
+                    <th style="text-align:left;padding:8px 6px;color:var(--text2)">Outcome Real</th>
+                </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+        </table>
+        </div>`;
+}
+
+async function confirmOutcome(predictionId, actualOutcome) {
+    try {
+        await api('/monitoring/feedback', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prediction_id: predictionId, actual_outcome: actualOutcome }),
+        });
+        const label = actualOutcome === 1 ? 'Ficou Defasado' : 'Não Defasou';
+        toast(`Outcome confirmado: ${label}`, 'success');
+        loadFeedback();
+    } catch (e) {
+        // toast already shown by api()
     }
 }
 

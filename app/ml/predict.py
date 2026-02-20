@@ -305,3 +305,43 @@ def predict(input_data: dict, model_id: str | None = None) -> dict:
 def predict_batch(input_list: list[dict], model_id: str | None = None) -> list[dict]:
     """Faz previsão para múltiplos alunos."""
     return [predict(data, model_id=model_id) for data in input_list]
+
+
+def predict_from_store(aluno_id: str, model_id: str | None = None) -> dict:
+    """
+    Faz previsão buscando features diretamente do Feature Store (online).
+
+    Ideal para cenários onde apenas o ID do aluno é conhecido e as features
+    já foram materializadas no SQLite via `materialize_features.py`.
+
+    Args:
+        aluno_id: RA do aluno.
+        model_id: ID do modelo. Se None, usa o mais recente.
+
+    Returns:
+        Dicionário com prediction, probability, risk_level, label, top_factors.
+
+    Raises:
+        RuntimeError: Se o Feature Store não está disponível ou populado.
+    """
+    try:
+        from feature_store.feature_store_manager import FeatureStoreManager
+    except ImportError:
+        raise RuntimeError("Feast não instalado. Execute: pip install feast")
+
+    manager = FeatureStoreManager()
+    if not manager.is_populated():
+        raise RuntimeError(
+            "Feature Store não está populado. "
+            "Execute: python scripts/materialize_features.py"
+        )
+
+    # Buscar features online
+    features_df = manager.get_online_features([aluno_id])
+
+    if features_df.empty:
+        raise ValueError(f"Aluno '{aluno_id}' não encontrado no Feature Store.")
+
+    # Converter para dicionário e fazer predição normal
+    input_data = features_df.iloc[0].to_dict()
+    return predict(input_data, model_id=model_id)

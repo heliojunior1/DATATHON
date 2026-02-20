@@ -15,6 +15,7 @@ from app.core.config import (
     CV_FOLDS,
     INCLUDE_IAN,
     AVAILABLE_FEATURES,
+    USE_FEATURE_STORE,
 )
 from app.ml.model_registry import create_model, get_param_grid, supports_hyperparam_search, supports_scale_pos_weight
 from app.ml.model_storage import save_trained_model
@@ -114,6 +115,7 @@ def run_training_pipeline(
     n_iter: int = 50,
     run_cv: bool = True,
     run_learning_curves: bool = True,
+    use_feature_store: bool | None = None,
 ) -> dict:
     """
     Executa a pipeline completa de treinamento.
@@ -127,10 +129,14 @@ def run_training_pipeline(
         n_iter: Número de iterações para busca.
         run_cv: Se True, executa K-Fold CV independente.
         run_learning_curves: Se True, gera gráfico de learning curves.
+        use_feature_store: Se True, ingere features no Feature Store.
+                          Se None, usa config.USE_FEATURE_STORE.
 
     Returns:
         Dicionário com métricas, model_id e resultados.
     """
+    if use_feature_store is None:
+        use_feature_store = USE_FEATURE_STORE
     if include_ian is None:
         include_ian = INCLUDE_IAN
     logger.info("=" * 70)
@@ -143,6 +149,18 @@ def run_training_pipeline(
 
     # 2. Feature engineering
     df = run_feature_engineering(df)
+
+    # 2.1 Feature Store — ingestão e materialização
+    if use_feature_store:
+        try:
+            from feature_store.feature_store_manager import FeatureStoreManager
+            fs_manager = FeatureStoreManager()
+            fs_manager.ingest_features(df)
+            fs_manager.apply()
+            fs_manager.materialize()
+            logger.info("Features ingeridas e materializadas no Feature Store")
+        except Exception as e:
+            logger.warning(f"Falha ao usar Feature Store (continuando sem): {e}")
 
     # 3. Seleção de features
     X, y = select_features(df, include_ian=include_ian)

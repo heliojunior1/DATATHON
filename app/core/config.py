@@ -191,3 +191,9 @@ AVAILABLE_FEATURES = {
     "Ratio_IDA_IEG": {"category": "Derivadas", "description": "Razão desempenho/esforço", "default": True},
 }
 
+# Feature Store (Feast)
+FEATURE_STORE_DIR = BASE_DIR / "feature_store"
+FEATURE_STORE_DATA_DIR = FEATURE_STORE_DIR / "data"
+FEATURE_STORE_ONLINE_DB = FEATURE_STORE_DATA_DIR / "online_store.db"
+USE_FEATURE_STORE = os.getenv("USE_FEATURE_STORE", "false").lower() == "true"
+

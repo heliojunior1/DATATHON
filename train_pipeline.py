@@ -69,6 +69,11 @@ def main():
         help="Pular geração de learning curves.",
     )
     parser.add_argument(
+        "--use-feature-store",
+        action="store_true",
+        help="Ativar ingestão/materialização no Feature Store (Feast).",
+    )
+    parser.add_argument(
         "--list-features",
         action="store_true",
         help="Listar todas as features disponíveis e sair.",
@@ -107,6 +112,7 @@ def main():
     print(f"  Include IAN: {'Sim' if args.include_ian else 'Não'}")
     print(f"  CV K-Fold:   {'Sim' if not args.no_cv else 'Não'}")
     print(f"  L. Curves:   {'Sim' if not args.no_learning_curves else 'Não'}")
+    print(f"  Feat. Store: {'Sim' if args.use_feature_store else 'Não'}")
     print("=" * 70 + "\n")
 
     results = run_training_pipeline(
@@ -118,6 +124,7 @@ def main():
         n_iter=args.n_iter,
         run_cv=not args.no_cv,
         run_learning_curves=not args.no_learning_curves,
+        use_feature_store=args.use_feature_store,
     )
 
     # Resumo

@@ -18,3 +18,11 @@ models/*.joblib
 DATATHON-20260215T114121Z-3-001/
 venv/
 nul
+# Arquivos de analise e testes locais
+ANALISE_DETALHADA_BASE_PEDE.txt
+analyze_data.py
+COMPARACAO_MODELOS.md
+compare_models.py
+discussaoProjeto.txt
+model_comparison_results.json
+train_pipeline.py

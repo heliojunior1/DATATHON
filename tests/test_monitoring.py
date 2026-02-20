@@ -10,7 +10,7 @@ import joblib
 from pathlib import Path
 from unittest.mock import patch
 
-from app.monitoring.drift import (
+from app.services.drift_service import (
     log_prediction,
     get_prediction_log,
     get_prediction_stats,
@@ -19,9 +19,9 @@ from app.monitoring.drift import (
     check_all_drift,
     _prediction_log,
 )
-from app.ml.model_storage import save_trained_model, clear_cache as clear_storage_cache
-from app.ml.preprocessing import preprocess_dataset, load_dataset
-from app.ml.evaluate import log_evaluation_results
+from app.services.model_storage import save_trained_model, clear_cache as clear_storage_cache
+from app.services.preprocessing import preprocess_dataset, load_dataset
+from app.services.evaluate import log_evaluation_results
 
 
 class TestDriftMonitoring:
@@ -94,8 +94,8 @@ class TestSaveModelArtifacts:
     """Testes para salvamento de artefatos via model_storage."""
 
     def test_save_model(self, engineered_data, tmp_path):
-        from app.ml.feature_engineering import select_features
-        from app.ml.train import train_model
+        from app.services.feature_engineering import select_features
+        from app.services.train_service import train_model
         from sklearn.model_selection import train_test_split
 
         X, y = select_features(engineered_data)

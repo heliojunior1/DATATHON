@@ -6,7 +6,7 @@ Cria features derivadas a partir dos dados pré-processados.
 import pandas as pd
 import numpy as np
 
-from app.core.config import (
+from app.config import (
     SELECTED_FEATURES,
     SELECTED_FEATURES_NO_IAN,
     INCLUDE_IAN,

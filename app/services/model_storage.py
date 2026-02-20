@@ -10,7 +10,7 @@ import pandas as pd
 from datetime import datetime
 from pathlib import Path
 
-from app.core.config import MODELS_DIR
+from app.config import MODELS_DIR
 from app.utils.helpers import setup_logger
 
 logger = setup_logger(__name__)

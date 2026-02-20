@@ -18,7 +18,7 @@ from sklearn.metrics import (
 from sklearn.model_selection import StratifiedKFold, learning_curve, cross_val_predict
 from sklearn.base import clone
 
-from app.core.config import RANDOM_STATE, CV_FOLDS, MODELS_DIR
+from app.config import RANDOM_STATE, CV_FOLDS, MODELS_DIR
 from app.utils.helpers import setup_logger
 
 logger = setup_logger(__name__)
@@ -329,4 +329,3 @@ def generate_learning_curves(
     logger.info(f"  Diagnóstico: {diagnosis}")
 
     return str(output_path)
-

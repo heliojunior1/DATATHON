@@ -8,14 +8,14 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 
-from app.core.config import (
+from app.config import (
     PEDRA_ORDINAL_MAP,
     GENERO_MAP,
     ESCOLA_MAP,
     FASE_ORDINAL_MAP,
     IDADE_MAX_ESPERADA,
 )
-from app.ml.model_storage import load_trained_model, clear_cache
+from app.services.model_storage import load_trained_model, clear_cache
 from app.utils.helpers import setup_logger
 
 logger = setup_logger(__name__)

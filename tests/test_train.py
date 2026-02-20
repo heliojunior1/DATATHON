@@ -8,15 +8,15 @@ from unittest.mock import patch
 from sklearn.model_selection import train_test_split
 from xgboost import XGBClassifier
 
-from app.ml.train import train_model, get_xgb_param_grid
-from app.ml.feature_engineering import select_features
-from app.ml.evaluate import (
+from app.services.train_service import train_model, get_xgb_param_grid
+from app.services.feature_engineering import select_features
+from app.services.evaluate import (
     calculate_metrics,
     get_classification_report,
     get_confusion_matrix,
     get_feature_importance,
 )
-from app.core.config import RANDOM_STATE, TEST_SIZE
+from app.config import RANDOM_STATE, TEST_SIZE
 
 
 class TestGetXGBParamGrid:

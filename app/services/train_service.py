@@ -9,7 +9,7 @@ import pandas as pd
 from pathlib import Path
 from sklearn.model_selection import train_test_split, StratifiedKFold, RandomizedSearchCV
 
-from app.core.config import (
+from app.config import (
     RANDOM_STATE,
     TEST_SIZE,
     CV_FOLDS,
@@ -17,11 +17,11 @@ from app.core.config import (
     AVAILABLE_FEATURES,
     USE_FEATURE_STORE,
 )
-from app.ml.model_registry import create_model, get_param_grid, supports_hyperparam_search, supports_scale_pos_weight
-from app.ml.model_storage import save_trained_model
-from app.ml.preprocessing import preprocess_dataset
-from app.ml.feature_engineering import run_feature_engineering, select_features
-from app.ml.evaluate import (
+from app.services.model_registry import create_model, get_param_grid, supports_hyperparam_search, supports_scale_pos_weight
+from app.services.model_storage import save_trained_model
+from app.services.preprocessing import preprocess_dataset
+from app.services.feature_engineering import run_feature_engineering, select_features
+from app.services.evaluate import (
     calculate_metrics,
     get_classification_report,
     get_confusion_matrix,

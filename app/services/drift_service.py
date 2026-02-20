@@ -9,7 +9,7 @@ import pandas as pd
 from datetime import datetime
 from scipy import stats as scipy_stats
 
-from app.ml.model_storage import load_reference_data
+from app.services.model_storage import load_reference_data
 from app.utils.helpers import setup_logger
 
 logger = setup_logger(__name__)
@@ -213,4 +213,3 @@ def check_all_drift() -> dict:
         "details": results,
         "prediction_stats": get_prediction_stats(),
     }
-

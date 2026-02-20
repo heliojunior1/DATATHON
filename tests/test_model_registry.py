@@ -11,7 +11,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
 from sklearn.pipeline import Pipeline
 
-from app.ml.model_registry import (
+from app.services.model_registry import (
     create_model,
     get_available_models,
     get_param_grid,

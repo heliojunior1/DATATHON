@@ -12,7 +12,7 @@ from sklearn.svm import SVC
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
-from app.core.config import RANDOM_STATE
+from app.config import RANDOM_STATE
 from app.utils.helpers import setup_logger
 
 logger = setup_logger(__name__)

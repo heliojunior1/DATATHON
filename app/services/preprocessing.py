@@ -7,7 +7,7 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 
-from app.core.config import (
+from app.config import (
     DATASET_PATH,
     DEFASAGEM_THRESHOLD,
     GENERO_MAP,

@@ -10,11 +10,11 @@ from fastapi.testclient import TestClient
 from sklearn.model_selection import train_test_split
 
 from app.main import app
-from app.ml.train import train_model
-from app.ml.feature_engineering import select_features
-from app.ml.predict import clear_model_cache
-from app.ml.model_storage import save_trained_model, clear_cache as clear_storage_cache
-from app.core.config import RANDOM_STATE, TEST_SIZE
+from app.services.train_service import train_model
+from app.services.feature_engineering import select_features
+from app.services.predict_service import clear_model_cache
+from app.services.model_storage import save_trained_model, clear_cache as clear_storage_cache
+from app.config import RANDOM_STATE, TEST_SIZE
 
 
 @pytest.fixture

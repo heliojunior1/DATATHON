@@ -144,7 +144,7 @@ def sample_student_input():
 @pytest.fixture
 def preprocessed_data(sample_raw_data):
     """Retorna dados pré-processados."""
-    from app.ml.preprocessing import create_target_variable, encode_categorical_columns, handle_missing_values
+    from app.services.preprocessing import create_target_variable, encode_categorical_columns, handle_missing_values
     df = create_target_variable(sample_raw_data)
     df = encode_categorical_columns(df)
     df = handle_missing_values(df)
@@ -154,5 +154,5 @@ def preprocessed_data(sample_raw_data):
 @pytest.fixture
 def engineered_data(preprocessed_data):
     """Retorna dados com feature engineering aplicada."""
-    from app.ml.feature_engineering import run_feature_engineering
+    from app.services.feature_engineering import run_feature_engineering
     return run_feature_engineering(preprocessed_data)

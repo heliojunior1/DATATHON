@@ -5,12 +5,12 @@ import pytest
 import pandas as pd
 import numpy as np
 
-from app.ml.feature_engineering import (
+from app.services.feature_engineering import (
     create_derived_features,
     select_features,
     run_feature_engineering,
 )
-from app.core.config import SELECTED_FEATURES, SELECTED_FEATURES_NO_IAN, INCLUDE_IAN
+from app.config import SELECTED_FEATURES, SELECTED_FEATURES_NO_IAN, INCLUDE_IAN
 
 
 class TestCreateDerivedFeatures:

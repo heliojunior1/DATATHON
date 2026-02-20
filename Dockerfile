@@ -13,7 +13,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copiar código da aplicação
 COPY app/ ./app/
-COPY static/ ./static/
 COPY train_pipeline.py .
 
 # Copiar dados e modelo (se existirem)

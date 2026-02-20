@@ -5,13 +5,13 @@ import pytest
 import pandas as pd
 import numpy as np
 
-from app.ml.preprocessing import (
+from app.services.preprocessing import (
     create_target_variable,
     encode_categorical_columns,
     handle_missing_values,
     _encode_rec_avaliador,
 )
-from app.core.config import DEFASAGEM_THRESHOLD
+from app.config import DEFASAGEM_THRESHOLD
 
 
 class TestCreateTargetVariable:

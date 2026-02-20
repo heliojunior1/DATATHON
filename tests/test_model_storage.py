@@ -10,7 +10,7 @@ from xgboost import XGBClassifier
 import pandas as pd
 import numpy as np
 
-from app.ml.model_storage import (
+from app.services.model_storage import (
     save_trained_model,
     load_trained_model,
     list_trained_models,

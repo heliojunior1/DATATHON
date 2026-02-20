@@ -5,7 +5,7 @@ import logging
 import sys
 from pathlib import Path
 
-from app.core.config import LOG_DIR, LOG_LEVEL
+from app.config import LOG_DIR, LOG_LEVEL
 
 
 def setup_logger(name: str, log_file: str | None = None) -> logging.Logger:

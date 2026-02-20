@@ -12,13 +12,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
 
-from app.api.routes import router
-from app.core.config import MODEL_NAME, MODEL_VERSION
+from app.routers.prediction import router as prediction_router
+from app.routers.training import router as training_router
+from app.routers.monitoring import router as monitoring_router
+from app.routers.feature_store import router as feature_store_router
+from app.config import MODEL_NAME, MODEL_VERSION
 from app.utils.helpers import setup_logger
 
 logger = setup_logger(__name__, log_file="api.log")
 
-STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
+STATIC_DIR = Path(__file__).resolve().parent / "static"
 
 
 @asynccontextmanager
@@ -29,7 +32,7 @@ async def lifespan(app: FastAPI):
     logger.info("=" * 60)
 
     try:
-        from app.ml.predict import load_model
+        from app.services.predict_service import load_model
         model, metadata = load_model()
         logger.info(f"Modelo carregado: {metadata.get('model_name')} v{metadata.get('model_version')}")
         logger.info(f"Métricas: {metadata.get('metrics', {})}")
@@ -78,8 +81,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Registrar rotas da API
-app.include_router(router)
+# Registrar routers da API
+app.include_router(prediction_router)
+app.include_router(training_router)
+app.include_router(monitoring_router)
+app.include_router(feature_store_router)
 
 # Servir arquivos estáticos
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
@@ -90,4 +96,3 @@ async def root():
     """Serve o frontend dashboard."""
     index_path = STATIC_DIR / "index.html"
     return HTMLResponse(content=index_path.read_text(encoding="utf-8"))
-

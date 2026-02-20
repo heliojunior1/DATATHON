@@ -37,8 +37,8 @@ def trained_model(engineered_data, tmp_path):
     models_dir = tmp_path / "models"
     models_dir.mkdir()
 
-    with patch("app.ml.model_storage.MODELS_DIR", models_dir), \
-         patch("app.ml.model_storage.INDEX_PATH", models_dir / "index.json"):
+    with patch("app.services.model_storage.MODELS_DIR", models_dir), \
+         patch("app.services.model_storage.INDEX_PATH", models_dir / "index.json"):
         clear_storage_cache()
 
         metadata = {
@@ -57,7 +57,7 @@ class TestHealthEndpoint:
     def test_health_no_model(self, client):
         """Health check sem modelo carregado."""
         clear_model_cache()
-        with patch("app.api.routes.load_model", side_effect=FileNotFoundError("No model")):
+        with patch("app.routers.prediction.load_model", side_effect=FileNotFoundError("No model")):
             response = client.get("/health")
             assert response.status_code == 200
             data = response.json()
@@ -67,8 +67,8 @@ class TestHealthEndpoint:
         """Health check com modelo carregado."""
         models_dir, model_id = trained_model
         clear_model_cache()
-        with patch("app.ml.model_storage.MODELS_DIR", models_dir), \
-             patch("app.ml.model_storage.INDEX_PATH", models_dir / "index.json"):
+        with patch("app.services.model_storage.MODELS_DIR", models_dir), \
+             patch("app.services.model_storage.INDEX_PATH", models_dir / "index.json"):
             clear_storage_cache()
             response = client.get("/health")
             assert response.status_code == 200
@@ -84,8 +84,8 @@ class TestPredictEndpoint:
         """Predição com dados válidos."""
         models_dir, model_id = trained_model
         clear_model_cache()
-        with patch("app.ml.model_storage.MODELS_DIR", models_dir), \
-             patch("app.ml.model_storage.INDEX_PATH", models_dir / "index.json"):
+        with patch("app.services.model_storage.MODELS_DIR", models_dir), \
+             patch("app.services.model_storage.INDEX_PATH", models_dir / "index.json"):
             clear_storage_cache()
             response = client.post("/predict", json=sample_student_input)
             assert response.status_code == 200
@@ -99,8 +99,8 @@ class TestPredictEndpoint:
         """Predição especificando model_id."""
         models_dir, model_id = trained_model
         clear_model_cache()
-        with patch("app.ml.model_storage.MODELS_DIR", models_dir), \
-             patch("app.ml.model_storage.INDEX_PATH", models_dir / "index.json"):
+        with patch("app.services.model_storage.MODELS_DIR", models_dir), \
+             patch("app.services.model_storage.INDEX_PATH", models_dir / "index.json"):
             clear_storage_cache()
             response = client.post(f"/predict?model_id={model_id}", json=sample_student_input)
             assert response.status_code == 200
@@ -110,7 +110,7 @@ class TestPredictEndpoint:
     def test_predict_no_model(self, client, sample_student_input):
         """Predição sem modelo carregado."""
         clear_model_cache()
-        with patch("app.api.routes.predict", side_effect=FileNotFoundError("No model")):
+        with patch("app.routers.prediction.predict", side_effect=FileNotFoundError("No model")):
             response = client.post("/predict", json=sample_student_input)
             assert response.status_code == 503
 
@@ -118,8 +118,8 @@ class TestPredictEndpoint:
         """Predição com dados inválidos."""
         models_dir, _ = trained_model
         clear_model_cache()
-        with patch("app.ml.model_storage.MODELS_DIR", models_dir), \
-             patch("app.ml.model_storage.INDEX_PATH", models_dir / "index.json"):
+        with patch("app.services.model_storage.MODELS_DIR", models_dir), \
+             patch("app.services.model_storage.INDEX_PATH", models_dir / "index.json"):
             clear_storage_cache()
             response = client.post("/predict", json={"invalid": "data"})
             assert response.status_code == 422  # Validation error
@@ -132,8 +132,8 @@ class TestBatchPredictEndpoint:
         """Predição em lote com dados válidos."""
         models_dir, _ = trained_model
         clear_model_cache()
-        with patch("app.ml.model_storage.MODELS_DIR", models_dir), \
-             patch("app.ml.model_storage.INDEX_PATH", models_dir / "index.json"):
+        with patch("app.services.model_storage.MODELS_DIR", models_dir), \
+             patch("app.services.model_storage.INDEX_PATH", models_dir / "index.json"):
             clear_storage_cache()
             response = client.post("/predict/batch", json={"students": [sample_student_input, sample_student_input]})
             assert response.status_code == 200
@@ -149,8 +149,8 @@ class TestModelInfoEndpoint:
         """Informações do modelo."""
         models_dir, model_id = trained_model
         clear_model_cache()
-        with patch("app.ml.model_storage.MODELS_DIR", models_dir), \
-             patch("app.ml.model_storage.INDEX_PATH", models_dir / "index.json"):
+        with patch("app.services.model_storage.MODELS_DIR", models_dir), \
+             patch("app.services.model_storage.INDEX_PATH", models_dir / "index.json"):
             clear_storage_cache()
             response = client.get("/model-info")
             assert response.status_code == 200
@@ -163,7 +163,7 @@ class TestModelInfoEndpoint:
     def test_model_info_no_model(self, client):
         """Info sem modelo carregado."""
         clear_model_cache()
-        with patch("app.api.routes.load_model", side_effect=FileNotFoundError):
+        with patch("app.routers.training.load_model", side_effect=FileNotFoundError):
             response = client.get("/model-info")
             assert response.status_code == 503
 
@@ -174,8 +174,8 @@ class TestFeatureImportanceEndpoint:
     def test_feature_importance(self, client, trained_model):
         models_dir, _ = trained_model
         clear_model_cache()
-        with patch("app.ml.model_storage.MODELS_DIR", models_dir), \
-             patch("app.ml.model_storage.INDEX_PATH", models_dir / "index.json"):
+        with patch("app.services.model_storage.MODELS_DIR", models_dir), \
+             patch("app.services.model_storage.INDEX_PATH", models_dir / "index.json"):
             clear_storage_cache()
             response = client.get("/feature-importance?top_n=5")
             assert response.status_code == 200
@@ -202,8 +202,8 @@ class TestModelsEndpoints:
     def test_list_models_empty(self, client, tmp_path):
         models_dir = tmp_path / "models_empty"
         models_dir.mkdir()
-        with patch("app.ml.model_storage.MODELS_DIR", models_dir), \
-             patch("app.ml.model_storage.INDEX_PATH", models_dir / "index.json"):
+        with patch("app.services.model_storage.MODELS_DIR", models_dir), \
+             patch("app.services.model_storage.INDEX_PATH", models_dir / "index.json"):
             clear_storage_cache()
             response = client.get("/models")
             assert response.status_code == 200

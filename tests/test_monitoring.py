@@ -85,7 +85,7 @@ class TestDriftMonitoring:
 
     def test_check_all_drift_no_reference(self):
         log_prediction({"IAA": 5.0}, {"prediction": 0, "probability": 0.2})
-        with patch("app.monitoring.drift.load_reference_data", return_value=None):
+        with patch("app.services.drift_service.load_reference_data", return_value=None):
             result = check_all_drift()
             assert result["status"] == "NO_REFERENCE"
 
@@ -105,8 +105,8 @@ class TestSaveModelArtifacts:
         models_dir = tmp_path / "models"
         models_dir.mkdir()
 
-        with patch("app.ml.model_storage.MODELS_DIR", models_dir), \
-             patch("app.ml.model_storage.INDEX_PATH", models_dir / "index.json"):
+        with patch("app.services.model_storage.MODELS_DIR", models_dir), \
+             patch("app.services.model_storage.INDEX_PATH", models_dir / "index.json"):
             clear_storage_cache()
             model_id = save_trained_model(
                 model=model,

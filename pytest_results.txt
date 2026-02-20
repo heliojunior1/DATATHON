@@ -1,0 +1,72 @@
+============================= test session starts =============================
+platform win32 -- Python 3.12.7, pytest-9.0.2, pluggy-1.6.0
+rootdir: C:\Users\junio\Documents\Datathon
+plugins: anyio-4.12.1, asyncio-1.3.0, cov-7.0.0, typeguard-4.5.1
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 199 items
+
+tests\test_api.py ........F......                                        [  7%]
+tests\test_feature_engineering.py ...................                    [ 17%]
+tests\test_feature_store.py ...................FF                        [ 27%]
+tests\test_model_registry.py ........................................... [ 49%]
+...........                                                              [ 54%]
+tests\test_model_storage.py .............                                [ 61%]
+tests\test_monitoring.py ..........F...                                  [ 68%]
+tests\test_predict.py ...................                                [ 77%]
+tests\test_preprocessing.py ............................                 [ 91%]
+tests\test_train.py ................                                     [100%]
+
+================================== FAILURES ===================================
+_______________ TestModelInfoEndpoint.test_model_info_no_model ________________
+tests\test_api.py:168: in test_model_info_no_model
+    assert response.status_code == 503
+E   assert 200 == 503
+E    +  where 200 = <Response [200 OK]>.status_code
+---------------------------- Captured stdout call -----------------------------
+2026-02-20 17:19:52 | app.services.model_storage | INFO | Cache de modelos limpo
+2026-02-20 17:19:52 | app.services.model_storage | INFO | Modelo carregado: xgb_20260220_114210
+------------------------------ Captured log call ------------------------------
+INFO     app.services.model_storage:model_storage.py:224 Cache de modelos limpo
+INFO     app.services.model_storage:model_storage.py:166 Modelo carregado: xgb_20260220_114210
+_________________ TestConfig.test_feature_store_config_exists _________________
+tests\test_feature_store.py:350: in test_feature_store_config_exists
+    from app.core.config import (
+E   ModuleNotFoundError: No module named 'app.core'
+_______________ TestConfig.test_use_feature_store_default_false _______________
+tests\test_feature_store.py:363: in test_use_feature_store_default_false
+    from app.core.config import USE_FEATURE_STORE
+E   ModuleNotFoundError: No module named 'app.core'
+____________ TestDriftMonitoring.test_check_all_drift_no_reference ____________
+tests\test_monitoring.py:88: in test_check_all_drift_no_reference
+    with patch("app.monitoring.drift.load_reference_data", return_value=None):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\anaconda3\Lib\unittest\mock.py:1447: in __enter__
+    self.target = self.getter()
+                  ^^^^^^^^^^^^^
+..\..\anaconda3\Lib\pkgutil.py:528: in resolve_name
+    result = getattr(result, p)
+             ^^^^^^^^^^^^^^^^^^
+E   AttributeError: module 'app' has no attribute 'monitoring'
+============================== warnings summary ===============================
+tests/test_feature_store.py::TestFeatureStoreManager::test_import
+  C:\Users\junio\Documents\Datathon\feature_store\entities.py:9: DeprecationWarning: Entity value_type will be mandatory in the next release. Please specify a value_type for entity 'aluno'.
+    aluno = Entity(
+
+tests/test_model_registry.py::TestCreateModel::test_tabpfn_fit_predict
+tests/test_model_registry.py::TestCreateModel::test_tabpfn_fit_predict
+tests/test_model_registry.py::TestCreateModel::test_tabpfn_fit_predict
+  C:\Users\junio\Documents\Datathon\venv\Lib\site-packages\sklearn\utils\deprecation.py:132: FutureWarning: 'force_all_finite' was renamed to 'ensure_all_finite' in 1.6 and will be removed in 1.8.
+    warnings.warn(
+
+tests/test_model_registry.py::TestCreateModel::test_tabpfn_fit_predict
+tests/test_model_registry.py::TestCreateModel::test_tabpfn_fit_predict
+  C:\Users\junio\Documents\Datathon\venv\Lib\site-packages\torch\_dynamo\eval_frame.py:1181: UserWarning: torch.utils.checkpoint: the use_reentrant parameter should be passed explicitly. Starting in PyTorch 2.9, calling checkpoint without use_reentrant will raise an exception. use_reentrant=False is recommended, but if you need to preserve the current default behavior, you can pass use_reentrant=True. Refer to docs for more details on the differences between the two variants.
+    return fn(*args, **kwargs)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/test_api.py::TestModelInfoEndpoint::test_model_info_no_model - a...
+FAILED tests/test_feature_store.py::TestConfig::test_feature_store_config_exists
+FAILED tests/test_feature_store.py::TestConfig::test_use_feature_store_default_false
+FAILED tests/test_monitoring.py::TestDriftMonitoring::test_check_all_drift_no_reference
+================= 4 failed, 195 passed, 6 warnings in 12.60s ==================

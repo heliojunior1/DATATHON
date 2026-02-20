@@ -26,8 +26,8 @@ def tmp_models_dir(tmp_path):
     """Usa diretório temporário para modelos."""
     models_dir = tmp_path / "models"
     models_dir.mkdir()
-    with patch("app.ml.model_storage.MODELS_DIR", models_dir), \
-         patch("app.ml.model_storage.INDEX_PATH", models_dir / "index.json"):
+    with patch("app.services.model_storage.MODELS_DIR", models_dir), \
+         patch("app.services.model_storage.INDEX_PATH", models_dir / "index.json"):
         clear_cache()
         yield models_dir
 

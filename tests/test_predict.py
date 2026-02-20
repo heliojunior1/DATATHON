@@ -109,8 +109,8 @@ class TestPredict:
         models_dir = tmp_path / "models"
         models_dir.mkdir()
 
-        with patch("app.ml.model_storage.MODELS_DIR", models_dir), \
-             patch("app.ml.model_storage.INDEX_PATH", models_dir / "index.json"):
+        with patch("app.services.model_storage.MODELS_DIR", models_dir), \
+             patch("app.services.model_storage.INDEX_PATH", models_dir / "index.json"):
             clear_storage_cache()
             metadata = {
                 "metrics": {"f1_score": 0.8},
@@ -123,8 +123,8 @@ class TestPredict:
     def test_predict_returns_dict(self, trained_model_setup, sample_student_input):
         models_dir, model_id, _ = trained_model_setup
         clear_model_cache()
-        with patch("app.ml.model_storage.MODELS_DIR", models_dir), \
-             patch("app.ml.model_storage.INDEX_PATH", models_dir / "index.json"):
+        with patch("app.services.model_storage.MODELS_DIR", models_dir), \
+             patch("app.services.model_storage.INDEX_PATH", models_dir / "index.json"):
             clear_storage_cache()
             result = predict(sample_student_input)
             assert isinstance(result, dict)
@@ -136,8 +136,8 @@ class TestPredict:
     def test_prediction_is_binary(self, trained_model_setup, sample_student_input):
         models_dir, model_id, _ = trained_model_setup
         clear_model_cache()
-        with patch("app.ml.model_storage.MODELS_DIR", models_dir), \
-             patch("app.ml.model_storage.INDEX_PATH", models_dir / "index.json"):
+        with patch("app.services.model_storage.MODELS_DIR", models_dir), \
+             patch("app.services.model_storage.INDEX_PATH", models_dir / "index.json"):
             clear_storage_cache()
             result = predict(sample_student_input)
             assert result["prediction"] in [0, 1]
@@ -145,8 +145,8 @@ class TestPredict:
     def test_probability_range(self, trained_model_setup, sample_student_input):
         models_dir, model_id, _ = trained_model_setup
         clear_model_cache()
-        with patch("app.ml.model_storage.MODELS_DIR", models_dir), \
-             patch("app.ml.model_storage.INDEX_PATH", models_dir / "index.json"):
+        with patch("app.services.model_storage.MODELS_DIR", models_dir), \
+             patch("app.services.model_storage.INDEX_PATH", models_dir / "index.json"):
             clear_storage_cache()
             result = predict(sample_student_input)
             assert 0 <= result["probability"] <= 1
@@ -154,8 +154,8 @@ class TestPredict:
     def test_risk_level_mapping(self, trained_model_setup, sample_student_input):
         models_dir, model_id, _ = trained_model_setup
         clear_model_cache()
-        with patch("app.ml.model_storage.MODELS_DIR", models_dir), \
-             patch("app.ml.model_storage.INDEX_PATH", models_dir / "index.json"):
+        with patch("app.services.model_storage.MODELS_DIR", models_dir), \
+             patch("app.services.model_storage.INDEX_PATH", models_dir / "index.json"):
             clear_storage_cache()
             result = predict(sample_student_input)
             valid_levels = ["Muito Baixo", "Baixo", "Moderado", "Alto", "Muito Alto"]
@@ -164,8 +164,8 @@ class TestPredict:
     def test_predict_with_model_id(self, trained_model_setup, sample_student_input):
         models_dir, model_id, _ = trained_model_setup
         clear_model_cache()
-        with patch("app.ml.model_storage.MODELS_DIR", models_dir), \
-             patch("app.ml.model_storage.INDEX_PATH", models_dir / "index.json"):
+        with patch("app.services.model_storage.MODELS_DIR", models_dir), \
+             patch("app.services.model_storage.INDEX_PATH", models_dir / "index.json"):
             clear_storage_cache()
             result = predict(sample_student_input, model_id=model_id)
             assert result["model_id"] == model_id
@@ -173,8 +173,8 @@ class TestPredict:
     def test_predict_batch(self, trained_model_setup, sample_student_input):
         models_dir, model_id, _ = trained_model_setup
         clear_model_cache()
-        with patch("app.ml.model_storage.MODELS_DIR", models_dir), \
-             patch("app.ml.model_storage.INDEX_PATH", models_dir / "index.json"):
+        with patch("app.services.model_storage.MODELS_DIR", models_dir), \
+             patch("app.services.model_storage.INDEX_PATH", models_dir / "index.json"):
             clear_storage_cache()
             results = predict_batch([sample_student_input, sample_student_input])
             assert len(results) == 2
@@ -185,8 +185,8 @@ class TestPredict:
         clear_model_cache()
         models_dir = tmp_path / "empty_models"
         models_dir.mkdir()
-        with patch("app.ml.model_storage.MODELS_DIR", models_dir), \
-             patch("app.ml.model_storage.INDEX_PATH", models_dir / "index.json"):
+        with patch("app.services.model_storage.MODELS_DIR", models_dir), \
+             patch("app.services.model_storage.INDEX_PATH", models_dir / "index.json"):
             clear_storage_cache()
             with pytest.raises(FileNotFoundError):
                 predict({"IAA": 5.0})

@@ -347,7 +347,7 @@ class TestConfig:
 
     def test_feature_store_config_exists(self):
         """Verifica que configuração do Feature Store existe em config.py."""
-        from app.core.config import (
+        from app.config import (
             FEATURE_STORE_DIR,
             FEATURE_STORE_DATA_DIR,
             FEATURE_STORE_ONLINE_DB,
@@ -360,6 +360,6 @@ class TestConfig:
 
     def test_use_feature_store_default_false(self):
         """Verifica que USE_FEATURE_STORE é False por padrão."""
-        from app.core.config import USE_FEATURE_STORE
+        from app.config import USE_FEATURE_STORE
         # Padrão: False (ativado via env var USE_FEATURE_STORE=true)
         assert USE_FEATURE_STORE is False

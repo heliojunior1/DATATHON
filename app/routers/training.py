@@ -16,7 +16,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 from pathlib import Path
 
-from app.models.schemas import (
+from app.models.training import (
     ModelInfoResponse,
     TrainRequest,
     TrainResponse,
@@ -24,11 +24,14 @@ from app.models.schemas import (
     AvailableFeaturesResponse,
     AvailableModelsResponse,
 )
-from app.services.predict_service import load_model, clear_model_cache
-from app.services.model_registry import get_available_models
-from app.services.model_storage import list_trained_models, delete_model
+from app.services.prediction.predict_service import load_model, clear_model_cache
+from app.services.training.model_registry import get_available_models
+from app.repositories.model_repository import ModelRepository
+
+_repo = ModelRepository()
 from app.config import AVAILABLE_FEATURES
 from app.utils.helpers import setup_logger
+from app.utils.error_handlers import handle_route_errors
 
 logger = setup_logger(__name__)
 
@@ -39,70 +42,51 @@ _training_status = {"running": False, "result": None, "error": None}
 
 
 @router.get("/model-info", response_model=ModelInfoResponse, tags=["Modelo"])
+@handle_route_errors(logger)
 async def model_info(model_id: str | None = None):
     """Retorna informações sobre um modelo. Se model_id=None, usa o mais recente."""
-    try:
-        _, metadata = load_model(model_id)
+    _, metadata = load_model(model_id)
 
-        return ModelInfoResponse(
-            model_id=metadata.get("model_id"),
-            model_name=metadata.get("model_name"),
-            model_type=metadata.get("model_type"),
-            model_version=metadata.get("model_version"),
-            metrics=metadata.get("metrics", {}),
-            feature_names=metadata.get("feature_names", []),
-            feature_importance=metadata.get("feature_importance", []),
-            n_training_samples=metadata.get("n_training_samples", 0),
-            confusion_matrix=metadata.get("confusion_matrix", {}),
-            cv_results=metadata.get("cv_results"),
-            trained_at=metadata.get("trained_at"),
-        )
-
-    except FileNotFoundError:
-        raise HTTPException(
-            status_code=503,
-            detail="Modelo não carregado. Execute o treinamento primeiro.",
-        )
-    except Exception as e:
-        logger.error(f"Erro ao obter info do modelo: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+    return ModelInfoResponse(
+        model_id=metadata.get("model_id"),
+        model_name=metadata.get("model_name"),
+        model_type=metadata.get("model_type"),
+        model_version=metadata.get("model_version"),
+        metrics=metadata.get("metrics", {}),
+        feature_names=metadata.get("feature_names", []),
+        feature_importance=metadata.get("feature_importance", []),
+        n_training_samples=metadata.get("n_training_samples", 0),
+        confusion_matrix=metadata.get("confusion_matrix", {}),
+        cv_results=metadata.get("cv_results"),
+        trained_at=metadata.get("trained_at"),
+    )
 
 
 @router.get("/feature-importance", tags=["Modelo"])
+@handle_route_errors(logger)
 async def feature_importance(top_n: int = 10, model_id: str | None = None):
     """Retorna as features mais importantes do modelo."""
-    try:
-        _, metadata = load_model(model_id)
-        importance = metadata.get("feature_importance", [])
-        return {"features": importance[:top_n]}
-
-    except FileNotFoundError:
-        raise HTTPException(status_code=503, detail="Modelo não carregado.")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    _, metadata = load_model(model_id)
+    importance = metadata.get("feature_importance", [])
+    return {"features": importance[:top_n]}
 
 
 @router.get("/learning-curve", tags=["Modelo"])
+@handle_route_errors(logger)
 async def learning_curve_image(model_id: str | None = None):
     """Retorna o gráfico de learning curves do modelo."""
-    try:
-        _, metadata = load_model(model_id)
-        lc_path = metadata.get("learning_curve_path")
-        if lc_path and Path(lc_path).exists():
-            return FileResponse(
-                lc_path,
-                media_type="image/png",
-                filename="learning_curves.png",
-            )
-        raise HTTPException(
-            status_code=404,
-            detail="Learning curves não disponíveis. Treine com learning curves habilitadas.",
+    _, metadata = load_model(model_id)
+    lc_path = metadata.get("learning_curve_path")
+    if lc_path and Path(lc_path).exists():
+        return FileResponse(
+            lc_path,
+            media_type="image/png",
+            filename="learning_curves.png",
         )
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Erro ao servir learning curves: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+    raise HTTPException(
+        status_code=404,
+        detail="Learning curves não disponíveis. Treine com learning curves habilitadas.",
+    )
 
 
 @router.post("/train", response_model=TrainResponse, tags=["Treinamento"])
@@ -123,7 +107,7 @@ async def train_model_endpoint(request: TrainRequest):
     _training_status = {"running": True, "result": None, "error": None}
 
     try:
-        from app.services.train_service import run_training_pipeline
+        from app.services.training.train_service import run_training_pipeline
 
         logger.info(
             f"Iniciando treinamento: type={request.model_type}, "
@@ -141,7 +125,6 @@ async def train_model_endpoint(request: TrainRequest):
             run_learning_curves=request.run_learning_curves,
         )
 
-        # Limpar cache para forçar reload do novo modelo
         clear_model_cache()
 
         _training_status = {"running": False, "result": results, "error": None}
@@ -169,7 +152,7 @@ async def train_model_endpoint(request: TrainRequest):
 @router.get("/models", response_model=ModelListResponse, tags=["Treinamento"])
 async def list_models():
     """Lista todos os modelos treinados (mais recente primeiro)."""
-    models = list_trained_models()
+    models = _repo.list()
     return ModelListResponse(models=models, total=len(models))
 
 
@@ -198,7 +181,7 @@ async def available_features():
 @router.delete("/models/{model_id}", tags=["Treinamento"])
 async def delete_model_endpoint(model_id: str):
     """Deleta um modelo treinado."""
-    success = delete_model(model_id)
+    success = _repo.delete(model_id)
     if not success:
         raise HTTPException(status_code=404, detail=f"Modelo '{model_id}' não encontrado.")
     clear_model_cache()

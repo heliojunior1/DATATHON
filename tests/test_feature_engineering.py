@@ -5,7 +5,7 @@ import pytest
 import pandas as pd
 import numpy as np
 
-from app.services.feature_engineering import (
+from app.services.ml.feature_engineering import (
     create_derived_features,
     select_features,
     run_feature_engineering,

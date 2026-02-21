@@ -4,18 +4,19 @@ Testes do módulo de treinamento.
 import pytest
 import pandas as pd
 import numpy as np
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 from sklearn.model_selection import train_test_split
 from xgboost import XGBClassifier
 
-from app.services.train_service import train_model, get_xgb_param_grid
-from app.services.feature_engineering import select_features
-from app.services.evaluate import (
+from app.services.training.train_service import train_model, get_xgb_param_grid, run_training_pipeline
+from app.services.ml.feature_engineering import select_features
+from app.services.training.evaluate import (
     calculate_metrics,
     get_classification_report,
     get_confusion_matrix,
     get_feature_importance,
 )
+from app.repositories.model_repository import ModelRepository
 from app.config import RANDOM_STATE, TEST_SIZE
 
 
@@ -176,3 +177,72 @@ class TestGetFeatureImportance:
         for item in importance:
             assert "feature" in item
             assert "importance" in item
+
+
+class TestRunTrainingPipelineWithMockRepo:
+    """
+    Testes de run_training_pipeline() usando ModelRepository injetado como mock.
+
+    Demonstra que a pipeline pode ser testada verificando apenas o contrato
+    com o repository (o que foi salvo, com quais argumentos) — sem disco.
+    """
+
+    def test_pipeline_chama_repo_save(self, sample_raw_data):
+        """repo.save() é chamado exatamente uma vez ao final da pipeline."""
+        mock_repo = MagicMock(spec=ModelRepository)
+        mock_repo.save.return_value = "xgb_test_mock_001"
+
+        with patch("app.services.ml.preprocessing.load_dataset", return_value=sample_raw_data):
+            result = run_training_pipeline(
+                model_type="xgboost",
+                optimize=False,
+                run_cv=False,
+                run_learning_curves=False,
+                repo=mock_repo,
+            )
+
+        mock_repo.save.assert_called_once()
+        assert result["model_id"] == "xgb_test_mock_001"
+
+    def test_pipeline_passa_artefatos_corretos_ao_repo(self, sample_raw_data):
+        """repo.save() recebe model, metadata, model_type, feature_names e X_train."""
+        mock_repo = MagicMock(spec=ModelRepository)
+        mock_repo.save.return_value = "xgb_test_mock_002"
+
+        with patch("app.services.ml.preprocessing.load_dataset", return_value=sample_raw_data):
+            run_training_pipeline(
+                model_type="xgboost",
+                optimize=False,
+                run_cv=False,
+                run_learning_curves=False,
+                repo=mock_repo,
+            )
+
+        _, kwargs = mock_repo.save.call_args
+        assert "model" in kwargs or len(mock_repo.save.call_args.args) >= 1
+        call_kwargs = mock_repo.save.call_args.kwargs
+        assert "model_type" in call_kwargs
+        assert call_kwargs["model_type"] == "xgboost"
+        assert "feature_names" in call_kwargs
+        assert isinstance(call_kwargs["feature_names"], list)
+        assert len(call_kwargs["feature_names"]) > 0
+
+    def test_pipeline_retorna_metricas(self, sample_raw_data):
+        """O resultado contém as chaves esperadas de métricas."""
+        mock_repo = MagicMock(spec=ModelRepository)
+        mock_repo.save.return_value = "xgb_test_mock_003"
+
+        with patch("app.services.ml.preprocessing.load_dataset", return_value=sample_raw_data):
+            result = run_training_pipeline(
+                model_type="xgboost",
+                optimize=False,
+                run_cv=False,
+                run_learning_curves=False,
+                repo=mock_repo,
+            )
+
+        assert "metrics" in result
+        assert "f1_score" in result["metrics"]
+        assert "n_train" in result
+        assert "n_test" in result
+        assert result["n_train"] + result["n_test"] > 0

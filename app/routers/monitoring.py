@@ -13,8 +13,8 @@ Endpoints:
 """
 from fastapi import APIRouter, HTTPException
 
-from app.models.schemas import DriftResponse, FeedbackRequest, FeedbackResponse
-from app.services.drift_service import (
+from app.models.monitoring import DriftResponse, FeedbackRequest, FeedbackResponse
+from app.services.monitoring.drift_service import (
     check_all_drift,
     get_prediction_stats,
     get_latency_stats,
@@ -25,6 +25,7 @@ from app.services.drift_service import (
     get_concept_drift_stats,
 )
 from app.utils.helpers import setup_logger
+from app.utils.error_handlers import handle_route_errors
 
 logger = setup_logger(__name__)
 
@@ -32,14 +33,11 @@ router = APIRouter()
 
 
 @router.get("/monitoring/drift", response_model=DriftResponse, tags=["Monitoramento"])
+@handle_route_errors(logger)
 async def drift_status():
     """Verifica status de data drift (KS-test, PSI, KL Divergence) por feature."""
-    try:
-        result = check_all_drift()
-        return DriftResponse(**result)
-    except Exception as e:
-        logger.error(f"Erro no monitoramento de drift: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+    result = check_all_drift()
+    return DriftResponse(**result)
 
 
 @router.get("/monitoring/stats", tags=["Monitoramento"])
@@ -67,26 +65,18 @@ async def missing_values_stats():
 
 
 @router.get("/monitoring/system", tags=["Monitoramento"])
+@handle_route_errors(logger)
 async def system_metrics():
     """Retorna métricas de uso de CPU e RAM do processo atual."""
-    try:
-        import psutil
-        process = psutil.Process()
-        mem = process.memory_info()
-        return {
-            "cpu_percent": psutil.cpu_percent(interval=0.1),
-            "memory_percent": round(process.memory_percent(), 2),
-            "memory_used_mb": round(mem.rss / 1024 ** 2, 1),
-            "memory_available_mb": round(psutil.virtual_memory().available / 1024 ** 2, 1),
-        }
-    except ImportError:
-        raise HTTPException(
-            status_code=501,
-            detail="psutil não instalado. Execute: pip install psutil",
-        )
-    except Exception as e:
-        logger.error(f"Erro ao coletar métricas do sistema: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+    import psutil
+    process = psutil.Process()
+    mem = process.memory_info()
+    return {
+        "cpu_percent": psutil.cpu_percent(interval=0.1),
+        "memory_percent": round(process.memory_percent(), 2),
+        "memory_used_mb": round(mem.rss / 1024 ** 2, 1),
+        "memory_available_mb": round(psutil.virtual_memory().available / 1024 ** 2, 1),
+    }
 
 
 # ── Concept Drift — Feedback Loop ────────────────────────────────────────────
@@ -120,14 +110,11 @@ async def submit_prediction_feedback(request: FeedbackRequest):
 
 
 @router.get("/monitoring/concept-drift", tags=["Concept Drift"])
+@handle_route_errors(logger)
 async def concept_drift_status(window_size: int = 20):
     """
     Detecta concept drift comparando F1/Recall entre janelas temporais de predições confirmadas.
 
     Requer pelo menos 5 feedbacks confirmados via POST /monitoring/feedback.
     """
-    try:
-        return get_concept_drift_stats(window_size)
-    except Exception as e:
-        logger.error(f"Erro no concept drift: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+    return get_concept_drift_stats(window_size)

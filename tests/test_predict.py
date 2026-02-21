@@ -5,13 +5,14 @@ import pytest
 import pandas as pd
 import numpy as np
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 from sklearn.model_selection import train_test_split
 
-from app.services.predict_service import prepare_input_features, predict, predict_batch, clear_model_cache
-from app.services.train_service import train_model
-from app.services.feature_engineering import select_features
-from app.services.model_storage import save_trained_model, clear_cache as clear_storage_cache
+from app.services.prediction.predict_service import prepare_input_features, predict, predict_batch, clear_model_cache
+from app.services.training.train_service import train_model
+from app.services.ml.feature_engineering import select_features
+from app.services.storage.model_storage import save_trained_model, clear_cache as clear_storage_cache
+from app.repositories.model_repository import ModelRepository
 from app.config import RANDOM_STATE, TEST_SIZE, SELECTED_FEATURES
 
 
@@ -109,8 +110,8 @@ class TestPredict:
         models_dir = tmp_path / "models"
         models_dir.mkdir()
 
-        with patch("app.services.model_storage.MODELS_DIR", models_dir), \
-             patch("app.services.model_storage.INDEX_PATH", models_dir / "index.json"):
+        with patch("app.services.storage.model_storage.MODELS_DIR", models_dir), \
+             patch("app.services.storage.model_storage.INDEX_PATH", models_dir / "index.json"):
             clear_storage_cache()
             metadata = {
                 "metrics": {"f1_score": 0.8},
@@ -123,8 +124,8 @@ class TestPredict:
     def test_predict_returns_dict(self, trained_model_setup, sample_student_input):
         models_dir, model_id, _ = trained_model_setup
         clear_model_cache()
-        with patch("app.services.model_storage.MODELS_DIR", models_dir), \
-             patch("app.services.model_storage.INDEX_PATH", models_dir / "index.json"):
+        with patch("app.services.storage.model_storage.MODELS_DIR", models_dir), \
+             patch("app.services.storage.model_storage.INDEX_PATH", models_dir / "index.json"):
             clear_storage_cache()
             result = predict(sample_student_input)
             assert isinstance(result, dict)
@@ -136,8 +137,8 @@ class TestPredict:
     def test_prediction_is_binary(self, trained_model_setup, sample_student_input):
         models_dir, model_id, _ = trained_model_setup
         clear_model_cache()
-        with patch("app.services.model_storage.MODELS_DIR", models_dir), \
-             patch("app.services.model_storage.INDEX_PATH", models_dir / "index.json"):
+        with patch("app.services.storage.model_storage.MODELS_DIR", models_dir), \
+             patch("app.services.storage.model_storage.INDEX_PATH", models_dir / "index.json"):
             clear_storage_cache()
             result = predict(sample_student_input)
             assert result["prediction"] in [0, 1]
@@ -145,8 +146,8 @@ class TestPredict:
     def test_probability_range(self, trained_model_setup, sample_student_input):
         models_dir, model_id, _ = trained_model_setup
         clear_model_cache()
-        with patch("app.services.model_storage.MODELS_DIR", models_dir), \
-             patch("app.services.model_storage.INDEX_PATH", models_dir / "index.json"):
+        with patch("app.services.storage.model_storage.MODELS_DIR", models_dir), \
+             patch("app.services.storage.model_storage.INDEX_PATH", models_dir / "index.json"):
             clear_storage_cache()
             result = predict(sample_student_input)
             assert 0 <= result["probability"] <= 1
@@ -154,8 +155,8 @@ class TestPredict:
     def test_risk_level_mapping(self, trained_model_setup, sample_student_input):
         models_dir, model_id, _ = trained_model_setup
         clear_model_cache()
-        with patch("app.services.model_storage.MODELS_DIR", models_dir), \
-             patch("app.services.model_storage.INDEX_PATH", models_dir / "index.json"):
+        with patch("app.services.storage.model_storage.MODELS_DIR", models_dir), \
+             patch("app.services.storage.model_storage.INDEX_PATH", models_dir / "index.json"):
             clear_storage_cache()
             result = predict(sample_student_input)
             valid_levels = ["Muito Baixo", "Baixo", "Moderado", "Alto", "Muito Alto"]
@@ -164,8 +165,8 @@ class TestPredict:
     def test_predict_with_model_id(self, trained_model_setup, sample_student_input):
         models_dir, model_id, _ = trained_model_setup
         clear_model_cache()
-        with patch("app.services.model_storage.MODELS_DIR", models_dir), \
-             patch("app.services.model_storage.INDEX_PATH", models_dir / "index.json"):
+        with patch("app.services.storage.model_storage.MODELS_DIR", models_dir), \
+             patch("app.services.storage.model_storage.INDEX_PATH", models_dir / "index.json"):
             clear_storage_cache()
             result = predict(sample_student_input, model_id=model_id)
             assert result["model_id"] == model_id
@@ -173,8 +174,8 @@ class TestPredict:
     def test_predict_batch(self, trained_model_setup, sample_student_input):
         models_dir, model_id, _ = trained_model_setup
         clear_model_cache()
-        with patch("app.services.model_storage.MODELS_DIR", models_dir), \
-             patch("app.services.model_storage.INDEX_PATH", models_dir / "index.json"):
+        with patch("app.services.storage.model_storage.MODELS_DIR", models_dir), \
+             patch("app.services.storage.model_storage.INDEX_PATH", models_dir / "index.json"):
             clear_storage_cache()
             results = predict_batch([sample_student_input, sample_student_input])
             assert len(results) == 2
@@ -185,8 +186,70 @@ class TestPredict:
         clear_model_cache()
         models_dir = tmp_path / "empty_models"
         models_dir.mkdir()
-        with patch("app.services.model_storage.MODELS_DIR", models_dir), \
-             patch("app.services.model_storage.INDEX_PATH", models_dir / "index.json"):
+        with patch("app.services.storage.model_storage.MODELS_DIR", models_dir), \
+             patch("app.services.storage.model_storage.INDEX_PATH", models_dir / "index.json"):
             clear_storage_cache()
             with pytest.raises(FileNotFoundError):
                 predict({"IAA": 5.0})
+
+
+class TestPredictWithMockRepo:
+    """
+    Testes de predição usando ModelRepository injetado como mock.
+
+    Demonstra que predict() e predict_batch() podem ser testados sem
+    nenhum acesso a disco — sem patch de módulos, sem tmp_path.
+    """
+
+    @pytest.fixture
+    def mock_repo(self, engineered_data):
+        """Cria um mock de ModelRepository com modelo real já carregado."""
+        X, y = select_features(engineered_data)
+        X_train, _, y_train, _ = train_test_split(
+            X, y, test_size=TEST_SIZE, random_state=RANDOM_STATE, stratify=y
+        )
+        trained = train_model(X_train, y_train, model_type="xgboost", optimize=False)
+        feature_names = list(X_train.columns)
+
+        metadata = {
+            "model_id": "mock_xgb_001",
+            "feature_names": feature_names,
+            "feature_importance": [{"feature": f, "importance": 0.1} for f in feature_names[:5]],
+        }
+
+        repo = MagicMock(spec=ModelRepository)
+        repo.load.return_value = (trained, metadata)
+        return repo
+
+    def test_predict_sem_disco(self, mock_repo, sample_student_input):
+        """predict() retorna resultado correto usando mock — zero I/O de disco."""
+        result = predict(sample_student_input, repo=mock_repo)
+
+        mock_repo.load.assert_called_once_with(None)
+        assert isinstance(result, dict)
+        assert result["prediction"] in [0, 1]
+        assert 0.0 <= result["probability"] <= 1.0
+        assert result["risk_level"] in ["Muito Baixo", "Baixo", "Moderado", "Alto", "Muito Alto"]
+        assert result["model_id"] == "mock_xgb_001"
+
+    def test_predict_com_model_id(self, mock_repo, sample_student_input):
+        """model_id é repassado ao repository."""
+        predict(sample_student_input, model_id="mock_xgb_001", repo=mock_repo)
+        mock_repo.load.assert_called_once_with("mock_xgb_001")
+
+    def test_predict_batch_sem_disco(self, mock_repo, sample_student_input):
+        """predict_batch() usa o mesmo repo para todos os itens."""
+        results = predict_batch([sample_student_input, sample_student_input], repo=mock_repo)
+
+        assert len(results) == 2
+        assert mock_repo.load.call_count == 2
+        for result in results:
+            assert result["prediction"] in [0, 1]
+
+    def test_modelo_nao_encontrado_com_mock(self):
+        """FileNotFoundError do repo é propagado sem mascaramento."""
+        repo = MagicMock(spec=ModelRepository)
+        repo.load.side_effect = FileNotFoundError("Modelo ausente")
+
+        with pytest.raises(FileNotFoundError, match="Modelo ausente"):
+            predict({"IAA": 5.0}, repo=repo)

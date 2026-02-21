@@ -15,8 +15,8 @@ from pathlib import Path
 # Garantir que o diretório raiz está no path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from app.services.preprocessing import preprocess_dataset
-from app.services.feature_engineering import run_feature_engineering
+from app.services.ml.preprocessing import preprocess_dataset
+from app.services.ml.feature_engineering import run_feature_engineering
 from feature_store.feature_store_manager import FeatureStoreManager
 
 

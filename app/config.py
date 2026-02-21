@@ -129,6 +129,22 @@ SELECTED_FEATURES = [
 # Features SEM IAN (para modelo padrão — evita data leakage)
 SELECTED_FEATURES_NO_IAN = [f for f in SELECTED_FEATURES if f != "IAN"]
 
+# Limiares de classificação de risco (usados em predict_service e drift_service)
+RISK_THRESHOLDS = {
+    "muito_alto": 0.8,
+    "alto": 0.6,
+    "moderado": 0.4,
+    "baixo": 0.2,
+}
+
+# Limiares para detecção de data drift (KS-test e mean_shift normalizados)
+DRIFT_THRESHOLDS = {
+    "ks_pvalue_critical": 0.01,
+    "ks_pvalue_warning": 0.05,
+    "mean_shift_critical": 2.0,
+    "mean_shift_warning": 1.0,
+}
+
 # Configurações de treinamento
 RANDOM_STATE = 42
 TEST_SIZE = 0.2

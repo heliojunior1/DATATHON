@@ -10,7 +10,7 @@ from xgboost import XGBClassifier
 import pandas as pd
 import numpy as np
 
-from app.services.model_storage import (
+from app.services.storage.model_storage import (
     save_trained_model,
     load_trained_model,
     list_trained_models,
@@ -26,8 +26,8 @@ def tmp_models_dir(tmp_path):
     """Usa diretório temporário para modelos."""
     models_dir = tmp_path / "models"
     models_dir.mkdir()
-    with patch("app.services.model_storage.MODELS_DIR", models_dir), \
-         patch("app.services.model_storage.INDEX_PATH", models_dir / "index.json"):
+    with patch("app.services.storage.model_storage.MODELS_DIR", models_dir), \
+         patch("app.services.storage.model_storage.INDEX_PATH", models_dir / "index.json"):
         clear_cache()
         yield models_dir
 

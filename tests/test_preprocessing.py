@@ -5,7 +5,7 @@ import pytest
 import pandas as pd
 import numpy as np
 
-from app.services.preprocessing import (
+from app.services.ml.preprocessing import (
     create_target_variable,
     encode_categorical_columns,
     handle_missing_values,

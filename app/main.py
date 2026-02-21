@@ -35,7 +35,7 @@ async def lifespan(app: FastAPI):
     logger.info("=" * 60)
 
     try:
-        from app.services.predict_service import load_model
+        from app.services.prediction.predict_service import load_model
         model, metadata = load_model()
         logger.info(f"Modelo carregado: {metadata.get('model_name')} v{metadata.get('model_version')}")
         logger.info(f"Métricas: {metadata.get('metrics', {})}")

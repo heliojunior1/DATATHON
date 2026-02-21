@@ -10,7 +10,7 @@ import joblib
 from pathlib import Path
 from unittest.mock import patch
 
-from app.services.drift_service import (
+from app.services.monitoring.drift_service import (
     log_prediction,
     get_prediction_log,
     get_prediction_stats,
@@ -19,9 +19,9 @@ from app.services.drift_service import (
     check_all_drift,
     _prediction_log,
 )
-from app.services.model_storage import save_trained_model, clear_cache as clear_storage_cache
-from app.services.preprocessing import preprocess_dataset, load_dataset
-from app.services.evaluate import log_evaluation_results
+from app.services.storage.model_storage import save_trained_model, clear_cache as clear_storage_cache
+from app.services.ml.preprocessing import preprocess_dataset, load_dataset
+from app.services.training.evaluate import log_evaluation_results
 
 
 class TestDriftMonitoring:
@@ -85,7 +85,7 @@ class TestDriftMonitoring:
 
     def test_check_all_drift_no_reference(self):
         log_prediction({"IAA": 5.0}, {"prediction": 0, "probability": 0.2})
-        with patch("app.services.drift_service.load_reference_data", return_value=None):
+        with patch("app.services.monitoring.data_drift_service.load_reference_data", return_value=None):
             result = check_all_drift()
             assert result["status"] == "NO_REFERENCE"
 
@@ -94,8 +94,8 @@ class TestSaveModelArtifacts:
     """Testes para salvamento de artefatos via model_storage."""
 
     def test_save_model(self, engineered_data, tmp_path):
-        from app.services.feature_engineering import select_features
-        from app.services.train_service import train_model
+        from app.services.ml.feature_engineering import select_features
+        from app.services.training.train_service import train_model
         from sklearn.model_selection import train_test_split
 
         X, y = select_features(engineered_data)
@@ -105,8 +105,8 @@ class TestSaveModelArtifacts:
         models_dir = tmp_path / "models"
         models_dir.mkdir()
 
-        with patch("app.services.model_storage.MODELS_DIR", models_dir), \
-             patch("app.services.model_storage.INDEX_PATH", models_dir / "index.json"):
+        with patch("app.services.storage.model_storage.MODELS_DIR", models_dir), \
+             patch("app.services.storage.model_storage.INDEX_PATH", models_dir / "index.json"):
             clear_storage_cache()
             model_id = save_trained_model(
                 model=model,

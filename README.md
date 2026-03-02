@@ -209,6 +209,20 @@ docker run -p 8000:8000 datathon-passos
 docker-compose up -d
 ```
 
+### 🌐 Deploy em Produção (Render)
+
+A API está publicada em:
+
+**https://datathon-4efk.onrender.com**
+
+| Endpoint | URL |
+|---|---|
+| Documentação (Swagger) | https://datathon-4efk.onrender.com/docs |
+| Health Check | https://datathon-4efk.onrender.com/health |
+| Predição | https://datathon-4efk.onrender.com/predict |
+
+> ⚠️ No plano gratuito do Render o serviço "dorme" após 15 min de inatividade. O primeiro acesso pode demorar ~30s para "acordar".
+
 ---
 
 ## 🔌 Exemplos de Chamadas à API

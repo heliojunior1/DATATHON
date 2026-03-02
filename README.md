@@ -198,15 +198,33 @@ A documentação interativa estará em: http://localhost:8000/docs
 
 ### 5. Deploy com Docker
 
-```bash
-# Build
-docker build -t datathon-passos .
+O projeto usa **multi-stage build** para otimizar o tamanho da imagem final e o tempo de rebuild:
 
-# Run
+| Stage | O que faz | Na imagem final? |
+|---|---|---|
+| `builder` | Instala deps com `gcc`, aplica patch TabPFN em `/install` | ❌ Descartado |
+| `runtime` | Copia `/install` já corrigido, sem `gcc` nem artefatos | ✅ |
+
+**Por que o patch roda no `builder`?**
+O `tabpfn==0.1.11` tem um bug em `layer.py` que tenta importar `Optional` de `torch.nn.modules.transformer` — símbolo removido no PyTorch 2.x. O `patch_tabpfn.py` edita fisicamente esse arquivo dentro de `/install`. Ao copiar `/install` para o stage `runtime` via `COPY --from=builder`, o `tabpfn` já chega corrigido na imagem final, sem necessidade de reprocessamento.
+
+**Benefícios:**
+- **Imagem ~40% menor** — `gcc` e artefatos de compilação ficam apenas no stage `builder` (descartado)
+- **Rebuild rápido** — camada do `pip install` fica em cache enquanto `requirements.txt` não mudar
+- **Segurança** — sem compilador na imagem de produção
+
+```bash
+# Build e subir (recomendado)
+docker-compose up --build
+
+# Ou manualmente
+docker build -t datathon-passos .
 docker run -p 8000:8000 datathon-passos
 
-# Ou com docker-compose
+# Em background
 docker-compose up -d
+
+#O arquivo continuou grande em virtude 
 ```
 
 ### 🌐 Deploy em Produção (Render)

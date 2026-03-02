@@ -1,29 +1,49 @@
-FROM python:3.11-slim
+# ============================================================
+# Stage 1: builder — instala dependências e corrige tabpfn
+# gcc é necessário para compilar alguns pacotes (ex: catboost)
+# ============================================================
+FROM python:3.11-slim AS builder
 
-WORKDIR /app
+WORKDIR /build
 
-# Instalar dependências do sistema
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     && rm -rf /var/lib/apt/lists/*
 
-# Copiar e instalar dependências Python
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 
-# Aplicar patch de compatibilidade: TabPFN v1 + PyTorch >= 2.0
+# Patch: corrige tabpfn/layer.py para compatibilidade com PyTorch >= 2.0
+# O patch edita fisicamente o arquivo instalado em /install antes de
+# copiá-lo para a imagem final — a imagem runtime recebe o tabpfn já corrigido
 COPY scripts/ ./scripts/
-RUN python scripts/patch_tabpfn.py
+RUN PYTHONPATH=/install/lib/python3.11/site-packages python scripts/patch_tabpfn.py
 
-# Copiar código da aplicação
+# ============================================================
+# Stage 2: runtime — imagem final leve (sem gcc)
+# gcc e artefatos de compilação ficam apenas no builder (descartado)
+# ============================================================
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# libgomp1 é necessário em runtime para o lightgbm (OpenMP)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copiar dependências já compiladas e com tabpfn corrigido
+COPY --from=builder /install /usr/local
+
+# Copiar código e recursos da aplicação
 COPY app/ ./app/
-
-# Copiar dados e modelo (se existirem)
-COPY data/ ./data/
+COPY scripts/ ./scripts/
 COPY models/ ./models/
+COPY feature_store/ ./feature_store/
+COPY data/ ./data/
 
-# Criar diretórios necessários
-RUN mkdir -p logs models
+# Criar diretório de logs
+RUN mkdir -p logs
 
 # Variáveis de ambiente
 ENV PYTHONUNBUFFERED=1
@@ -33,6 +53,5 @@ ENV API_PORT=8000
 # Expor porta (Render injeta $PORT automaticamente)
 EXPOSE 8000
 
-# Comando padrão: iniciar a API
 # Render define $PORT; fallback para 8000 local
 CMD uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}

@@ -30,3 +30,7 @@ httpx>=0.25.0
 
 # Logging
 python-json-logger>=2.0.0
+shap>=0.44.0
+mlxtend>=0.23.0
+matplotlib>=3.8.0
+seaborn>=0.13.0

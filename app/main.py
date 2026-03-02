@@ -16,6 +16,7 @@ from app.routers.prediction import router as prediction_router
 from app.routers.training import router as training_router
 from app.routers.monitoring import router as monitoring_router
 from app.routers.feature_store import router as feature_store_router
+from app.routers.explain import router as explain_router
 from app.config import MODEL_NAME, MODEL_VERSION
 from app.utils.helpers import setup_logger
 
@@ -114,6 +115,7 @@ app.include_router(prediction_router)
 app.include_router(training_router)
 app.include_router(monitoring_router)
 app.include_router(feature_store_router)
+app.include_router(explain_router)
 
 # Servir arquivos estáticos
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")

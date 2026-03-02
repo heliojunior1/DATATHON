@@ -1,0 +1,9 @@
+venv/
+__pycache__/
+.git/
+*.pyc
+*.pyo
+DATATHON-20260215T114121Z-3-001/
+.pytest_cache/
+logs/
+.env

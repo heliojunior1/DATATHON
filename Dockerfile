@@ -13,7 +13,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copiar código da aplicação
 COPY app/ ./app/
-COPY train_pipeline.py .
 
 # Copiar dados e modelo (se existirem)
 COPY data/ ./data/
@@ -27,8 +26,9 @@ ENV PYTHONUNBUFFERED=1
 ENV API_HOST=0.0.0.0
 ENV API_PORT=8000
 
-# Expor porta
+# Expor porta (Render injeta $PORT automaticamente)
 EXPOSE 8000
 
 # Comando padrão: iniciar a API
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Render define $PORT; fallback para 8000 local
+CMD uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}

@@ -14,13 +14,14 @@ from pathlib import Path
 
 def patch_tabpfn():
     """Aplica patch no tabpfn/layer.py para compatibilidade com torch>=2.0."""
-    try:
-        import tabpfn
-    except ImportError:
+    import importlib.util
+
+    spec = importlib.util.find_spec("tabpfn")
+    if spec is None or spec.origin is None:
         print("⚠️  tabpfn não está instalado, ignorando patch.")
         return False
 
-    layer_path = Path(tabpfn.__file__).parent / "layer.py"
+    layer_path = Path(spec.origin).parent / "layer.py"
 
     if not layer_path.exists():
         print(f"⚠️  {layer_path} não encontrado.")

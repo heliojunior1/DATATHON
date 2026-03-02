@@ -11,6 +11,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Aplicar patch de compatibilidade: TabPFN v1 + PyTorch >= 2.0
+COPY scripts/ ./scripts/
+RUN python scripts/patch_tabpfn.py
+
 # Copiar código da aplicação
 COPY app/ ./app/
 

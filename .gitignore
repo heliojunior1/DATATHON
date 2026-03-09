@@ -26,3 +26,4 @@ compare_models.py
 discussaoProjeto.txt
 model_comparison_results.json
 train_pipeline.py
+benchmark_models.py

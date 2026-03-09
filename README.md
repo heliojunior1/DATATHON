@@ -38,6 +38,114 @@ Pipeline completa de Machine Learning usando **XGBoost** como classificador bin�
 
 > O desvio padrão baixo (< 1.6%) em todas as métricas confirma que o modelo **generaliza bem** e não apresenta overfitting.
 
+---
+
+## 📊 Comparação de Modelos × Feature Sets
+
+Para avaliar o impacto de diferentes algoritmos e conjuntos de features, realizamos um benchmark completo com **5 modelos** e **4 conjuntos de features**, totalizando **20 experimentos**. Todos os modelos foram treinados **sem otimização de hiperparâmetros** (parâmetros default) para garantir uma comparação justa.
+
+> **Nota:** O TabPFN (Transformer pré-treinado para dados tabulares) foi excluído dos resultados por incompatibilidade com a versão atual do scikit-learn.
+
+### Feature Sets Testados
+
+| Set | Nome | Nº Features | Descrição |
+|-----|------|:-----------:|-----------|
+| **A** | Todas (sem IAN) | 35 | Todas as features padrão do projeto, excluindo IAN (data leakage) |
+| **B** | Indicadores + Notas | 8 | Apenas indicadores PEDE (IAA, IEG, IPS, IDA, IPV, INDE 22) e notas (Matem, Portug) |
+| **C** | Core + Demográficas | 13 | Set B + variáveis demográficas (Idade, Gênero, Escola, Anos na PM, Fase) |
+| **D** | Todas (com IAN) | 36 | Todas as features incluindo IAN — ⚠️ contém **data leakage** |
+
+### Resultados por Feature Set
+
+#### Set A — Todas as Features sem IAN (35 features)
+
+| Modelo | Accuracy | Precision | Recall | F1-Score | AUC-ROC | Tempo |
+|--------|:--------:|:---------:|:------:|:--------:|:-------:|:-----:|
+| XGBoost | 95.93% | 99.13% | 95.00% | 97.02% | 99.66% | 1.75s |
+| CatBoost | **100.00%** | **100.00%** | **100.00%** | **100.00%** | **100.00%** | 0.32s |
+| LightGBM | 99.42% | 99.17% | 100.00% | 99.59% | 100.00% | 1.96s |
+| Logistic Regression | **100.00%** | **100.00%** | **100.00%** | **100.00%** | **100.00%** | 0.24s |
+| SVM | 93.02% | 93.55% | 96.67% | 95.08% | 98.64% | 0.04s |
+
+> **Análise:** Com todas as 35 features, **CatBoost** e **Logistic Regression** atingem 100% em todas as métricas, sugerindo que o conjunto completo de features fornece separação perfeita das classes no conjunto de teste. O XGBoost, com seus parâmetros de regularização mais agressivos (max_depth=4, min_child_weight=5), apresenta F1 de 97.02% — sacrificando ligeiramente o desempenho para melhor generalização. O SVM apresenta o menor desempenho (F1=95.08%), possivelmente pela dificuldade do kernel RBF em alta dimensionalidade com mistura de features binárias e contínuas.
+
+#### Set B — Indicadores + Notas (8 features)
+
+| Modelo | Accuracy | Precision | Recall | F1-Score | AUC-ROC | Tempo |
+|--------|:--------:|:---------:|:------:|:--------:|:-------:|:-----:|
+| XGBoost | 91.28% | 92.68% | 95.00% | 93.83% | 95.56% | 0.11s |
+| CatBoost | 94.77% | 93.70% | 99.17% | 96.36% | 97.69% | 0.21s |
+| LightGBM | 93.02% | 92.19% | 98.33% | 95.16% | 95.88% | 0.04s |
+| Logistic Regression | **99.42%** | **99.17%** | **100.00%** | **99.59%** | **99.98%** | 0.01s |
+| SVM | 96.51% | 96.72% | 98.33% | 97.52% | 98.62% | 0.03s |
+
+> **Análise:** Este é o cenário mais revelador. Com apenas **8 features numéricas** (sem flags, rankings ou variáveis derivadas), a **Logistic Regression** surpreendentemente lidera com F1 de 99.59%, demonstrando que a relação entre indicadores PEDE/notas e o risco de defasagem é **fundamentalmente linear**. Os modelos baseados em árvore (XGBoost, CatBoost, LightGBM) perdem desempenho relativo, possivelmente porque com poucas features numéricas, a capacidade de criar splits complexos não compensa o viés. O **SVM com kernel RBF** (F1=97.52%) também se beneficia do espaço de baixa dimensionalidade, onde o kernel é mais eficaz.
+
+#### Set C — Core + Demográficas (13 features)
+
+| Modelo | Accuracy | Precision | Recall | F1-Score | AUC-ROC | Tempo |
+|--------|:--------:|:---------:|:------:|:--------:|:-------:|:-----:|
+| XGBoost | 97.09% | 97.52% | 98.33% | 97.93% | 99.60% | 0.10s |
+| CatBoost | **100.00%** | **100.00%** | **100.00%** | **100.00%** | **100.00%** | 0.22s |
+| LightGBM | **100.00%** | **100.00%** | **100.00%** | **100.00%** | **100.00%** | 0.03s |
+| Logistic Regression | **100.00%** | **100.00%** | **100.00%** | **100.00%** | **100.00%** | 0.03s |
+| SVM | 95.35% | 96.67% | 96.67% | 96.67% | 99.54% | 0.04s |
+
+> **Análise:** Adicionar 5 variáveis demográficas (Idade, Gênero, Escola, Anos na PM, Fase) ao Set B resulta em melhoria significativa. **CatBoost, LightGBM e Logistic Regression** atingem 100%, enquanto o XGBoost sobe de 93.83% para 97.93%. A variável **Fase** (fase escolar) é especialmente discriminativa, pois está diretamente relacionada à defasagem. O SVM permanece como o modelo mais conservador (F1=96.67%), mostrando que o StandardScaler na pipeline não compensa totalmente a heterogeneidade das features.
+
+#### Set D — Todas as Features com IAN (36 features) ⚠️
+
+| Modelo | Accuracy | Precision | Recall | F1-Score | AUC-ROC | Tempo |
+|--------|:--------:|:---------:|:------:|:--------:|:-------:|:-----:|
+| XGBoost | 100.00% | 100.00% | 100.00% | 100.00% | 100.00% | 0.07s |
+| CatBoost | 100.00% | 100.00% | 100.00% | 100.00% | 100.00% | 0.21s |
+| LightGBM | 100.00% | 100.00% | 100.00% | 100.00% | 100.00% | 0.02s |
+| Logistic Regression | 100.00% | 100.00% | 100.00% | 100.00% | 100.00% | 0.01s |
+| SVM | 100.00% | 100.00% | 100.00% | 100.00% | 100.00% | 0.03s |
+
+> ⚠️ **Data Leakage confirmado:** Todos os modelos atingem 100% com IAN incluída. Isso confirma que **IAN (Indicador de Adequação ao Nível)** é praticamente sinônimo do target (defasagem), com correlação de 0.838. A feature IAN sozinha permite separação perfeita das classes, tornando os resultados irreais e não reproduzíveis em produção. **Este conjunto NÃO deve ser usado para treinamento do modelo final.**
+
+### 🏆 Ranking Geral (Top 10 por F1-Score)
+
+| # | Modelo | Feature Set | F1-Score | AUC-ROC | Accuracy |
+|---|--------|-------------|:--------:|:-------:|:--------:|
+| 🥇 | CatBoost | A — Todas (sem IAN) | **100.00%** | 100.00% | 100.00% |
+| 🥈 | Logistic Regression | A — Todas (sem IAN) | **100.00%** | 100.00% | 100.00% |
+| 🥉 | CatBoost | C — Core + Demográficas | **100.00%** | 100.00% | 100.00% |
+| 4 | LightGBM | C — Core + Demográficas | **100.00%** | 100.00% | 100.00% |
+| 5 | Logistic Regression | C — Core + Demográficas | **100.00%** | 100.00% | 100.00% |
+| 6 | LightGBM | A — Todas (sem IAN) | **99.59%** | 100.00% | 99.42% |
+| 7 | Logistic Regression | B — Indicadores + Notas | **99.59%** | 99.98% | 99.42% |
+| 8 | XGBoost | C — Core + Demográficas | **97.93%** | 99.60% | 97.09% |
+| 9 | SVM | B — Indicadores + Notas | **97.52%** | 98.62% | 96.51% |
+| 10 | XGBoost | A — Todas (sem IAN) | **97.02%** | 99.66% | 95.93% |
+
+### 🔍 Conclusões e Insights
+
+#### 1. Impacto do Conjunto de Features
+
+- **Set B (8 features)** é o cenário mais discriminativo entre modelos — revela diferenças reais de desempenho
+- **Sets A e C** atingem 100% para vários modelos, indicando que as features extras (flags, pedras, rankings) são redundantes para separação perfeita no test set
+- **Set D** confirma o data leakage do IAN — deve ser evitado em produção
+
+#### 2. Comportamento dos Modelos
+
+| Modelo | Pontos Fortes | Pontos Fracos |
+|--------|--------------|---------------|
+| **CatBoost** | Melhor tree-based: 100% em Sets A e C | Mais lento que LightGBM |
+| **LightGBM** | Rápido e preciso: 100% em Set C | Ligeiramente inferior ao CatBoost em Set A |
+| **Logistic Regression** | Surpreendente: 100% em Sets A/C, melhor no Set B | Pode não generalizar para dados muito diferentes |
+| **XGBoost** | Regularização robusta, bom em produção | Mais conservador — F1 menor em Sets A/B |
+| **SVM** | Bom com poucas features (Set B) | Pior desempenho geral, sensível à escala |
+
+#### 3. Recomendações
+
+- **Para produção:** Usar **XGBoost com Set A** (F1=97.02%) — a regularização garante melhor generalização em dados novos, evitando overfitting no conjunto de teste
+- **Para interpretabilidade:** Usar **Logistic Regression com Set B** (F1=99.59%) — modelo simples, rápido e com apenas 8 features
+- **Para máximo desempenho:** **CatBoost com Set C** (F1=100%) — melhor equilíbrio entre nº de features e desempenho
+
+> **⚠️ Atenção:** Resultados de 100% em conjuntos de teste pequenos devem ser interpretados com cautela. A Cross-Validation independente (5-Fold) é mais confiável para avaliar generalização. O XGBoost com regularização continua sendo a recomendação principal para produção.
+
 ### Stack Tecnológica
 - **Linguagem**: Python 3.11
 - **ML**: scikit-learn, XGBoost, pandas, numpy, matplotlib
